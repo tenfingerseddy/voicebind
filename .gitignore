@@ -1,0 +1,24 @@
+# Local runtime and personal data must never enter the public repository.
+.venv/
+__pycache__/
+*.py[cod]
+models/
+sessions/
+reports/
+backups/
+HANDOFF*
+*.log
+*.wav
+*.pcm
+.env
+.env.*
+api-key
+credentials*
+config.toml
+bookmarks.json
+dictation-draft.txt
+.pytest_cache/
+.coverage
+dist/
+build/
+*.egg-info/

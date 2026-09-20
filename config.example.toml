@@ -1,0 +1,40 @@
+# ~/.config/jev-voice/config.toml — or edit visibly with `voicebind settings`.
+# Restart jev-voice.service after manual edits; the GUI applies changes while idle.
+# Store the credential separately with `voicebind key` (hidden input).
+# Current installations inherit legacy app mappings only while this file is absent.
+
+[voice]
+wake_phrase = "computer"
+wake_enabled = true
+
+[recognition]
+source = "" # follow the system microphone; or choose a source in Settings
+end_silence_ms = 360 # silence wait for wake commands; 200–1500 ms; F10 release skips it
+wake_preview_ms = 800
+
+[indicator]
+enabled = true
+size = 48
+top = 54
+dictation_width = 216
+
+[desktop]
+focus_by_default = true
+launch_timeout_seconds = 8
+close_timeout_seconds = 1.5
+
+# App roles are detected automatically. Override with installed desktop IDs:
+# [apps]
+# browser = "firefox.desktop"
+# files = "org.gnome.Nautilus.desktop"
+# [workspaces]
+# work = 2
+
+# Exact whole phrases, without the wake word. No dictation body rewriting.
+# [phrases]
+# "bring up my stuff" = "open files"
+# "writing time" = "dictate"
+# "same bookmark work mode" = "save bookmark work mode"
+# "desk setup" = "open teams on workspace 5 then make it full screen"
+# Bookmarks and their extra phrases are managed with `voicebind settings`
+# or `voicebind bookmarks`; they live in a separate private bookmarks.json.

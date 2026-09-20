@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "jev-voice",
+  "name": "Voicebind",
+  "version": "0.6.0",
+  "description": "Voice control, dictation, bookmarks and personal settings.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Voicebind",
+    "description": "Voice controls and settings",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
