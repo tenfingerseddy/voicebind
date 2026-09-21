@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.2 — Natural app placement
+
+- Accept app/destination shorthand such as “files workspace two”, “browser on
+  three” and shorthand followed by another action, using installed app aliases.
+- Interpret the desired result: named-app placement launches a closed app or
+  reuses an existing window, including when Jev classifies the request as “move”.
+- Teach Jev to accept implied verbs, fragments and desired states. Existing
+  validation of supported operations, workspace bounds and conditions remains.
+- 343 regression tests and 14 real Jev interpretation checks passed. The optional
+  synthetic API evaluation is available as `tests/check_jev.py`.
+
 ## 0.6.1 — F10 indicator completion
 
 - Fix the indicator remaining animated after F10 release when background audio

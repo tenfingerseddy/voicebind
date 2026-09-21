@@ -6,7 +6,7 @@ Open apps, move windows, chain commands, dictate text and recall saved workspace
 arrangements. Local Whisper handles speech recognition. Common commands run locally;
 an optional Jev API key adds semantic interpretation for unfamiliar phrasing.
 
-**Current public preview: 0.6.1.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
+**Current public preview: 0.6.2.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
 Lua configuration and the Quickshell bar. Older Waybar/Hyprland configurations
 are not supported. English speech and commands only at present.
 
@@ -108,6 +108,9 @@ Provider access and charges are separate from Voicebind.
 
 Try these with the wake phrase or by holding F10:
 
+- “Computer files workspace two.”
+- “Computer browser on three.”
+- “Computer files workspace two then make it full screen.”
 - “Computer bring up the browser.”
 - “Computer open files on workspace five then make it full screen.”
 - “Computer move this app to workspace two and close Teams.”
@@ -116,6 +119,13 @@ Try these with the wake phrase or by holding F10:
 - “Computer set volume to forty percent.”
 - “Computer turn on night light.”
 - “Computer voice settings.”
+
+An app name and destination are enough: **“files workspace two”** opens Files
+there if closed, moves an existing window there if needed, or focuses it if already
+present. This applies to installed app names and aliases, without defining a custom
+phrase. Simple shorthand runs locally. Jev handles broader phrasing such as
+**“could I have files over on two”** when an API key is configured. Named-app
+placement also opens a closed app when the request is interpreted as “move”.
 
 Within a chain, **it/that window** refers to the previous window operation.
 **This app/this window** refers to the window focused when speech began.
@@ -214,6 +224,9 @@ python3 -m venv .venv
 
 These tests use synthetic fixtures and mocked desktop actions. They do not need an
 API key or model. Qt 6 layout/paging tests are described in [tests/qml/README.md](tests/qml/README.md).
+To check the real classifier separately, run `.venv/bin/python tests/check_jev.py`.
+This optional check uses your Jev key and normal API usage, with synthetic app
+names and prepared plans; it never executes desktop actions.
 Testing on other machines, microphones and themes is welcome. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for useful bug-report details.
 

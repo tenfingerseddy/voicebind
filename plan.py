@@ -88,6 +88,12 @@ class Planner:
                         command = replace(command, app=None)
                         if action == 'open':
                             command = replace(command, action='focus')
+                    elif action == 'move' and command.workspace is not None and app.id not in planned_targets:
+                        # Placement is a desired state: if the named app is
+                        # closed, launch it there instead of failing a natural
+                        # request just because the classifier chose "move".
+                        command = replace(command, action='open')
+                        action, target, label = 'open', None, 'Open'
                     elif action != 'open' and app.id not in planned_targets:
                         raise ValueError(f'{name} has no matching open window')
                     elif action != 'open':

@@ -1,4 +1,4 @@
-"""Closed command grammar first; one Jev fan-out for natural-language requests."""
+"""Fast local intents first; one Jev fan-out for natural-language requests."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict, replace
@@ -49,9 +49,9 @@ EXTRAS = {
 }
 ALWAYS_CONFIRM = {'system.reboot', 'system.shutdown', 'system.logout', 'close_all'}
 ACTIONS = {
-    'open': 'Open or bring up an application, optionally place it on a workspace',
+    'open': 'Get an application ready, optionally on a workspace: launch if closed, otherwise move/focus its existing window. Also use for an app name and destination with no verb.',
     'focus': 'Focus an already open application, without starting it',
-    'move': 'Move an existing window or named application to a workspace',
+    'move': 'Place a window or named app on a workspace. A closed named app is launched there; current-window references require an existing window.',
     'switch': 'Switch to a numbered workspace; no application is being opened or moved',
     'folder': 'Open a folder in the file manager, e.g. Downloads',
     'close': 'Close one window or a named application; never all windows',
@@ -207,9 +207,17 @@ class Router:
         else:
             # ASR often inserts a comma between an action and its object.
             text = re.sub(r'^(move|open|close|focus),\s*', r'\1 ', text)
-            commands = list(parse_plan(text, self.config.get('workspaces'), self.config.get('folders'),
-                                      app_aliases=self.catalog.aliases,
-                                      shortcuts=self.config.get('shortcuts')))
+            def parse(phrase):
+                return list(parse_plan(phrase, self.config.get('workspaces'), self.config.get('folders'),
+                                       app_aliases=self.catalog.aliases,
+                                       shortcuts=self.config.get('shortcuts')))
+            try:
+                commands = parse(text)
+            except ValueError:
+                # An app plus a destination describes the desired desktop state.
+                # Reuse the full parser and installed-app validation so every
+                # alias gets shorthand without swallowing unsupported suffixes.
+                commands = parse('open ' + text)
         return commands
 
     def incomplete(self, text):
@@ -258,13 +266,13 @@ class Router:
     def questions(self, clauses):
         qs = {}
         for i, _ in enumerate(clauses):
-            context = f"Read ONLY clause {i + 1} in 'clauses', a wake-addressed desktop request. "
-            qs[f'action{i}'] = choice(context + 'Which operation was requested? Opening an app ON a workspace is open, not switch. Interpret plausible speech recognition slips. Choose none if no single operation covers this clause.', self.actions)
+            context = f"Read ONLY clause {i + 1} in 'clauses', a desktop request deliberately addressed by wake phrase or push-to-talk. "
+            qs[f'action{i}'] = choice(context + 'Which operation best achieves the intended result? Infer omitted verbs from app names, destinations and desired states; no command syntax is required. An app wanted on a workspace means open: the local planner launches if closed, or moves/focuses its existing window. Choose move for an explicit relocation request and switch only when no app is requested. Interpret plausible speech recognition slips. Choose none if no single supported operation covers this clause.', self.actions)
             named = self.named_targets(clauses[i])
             qs[f'target{i}'] = choice(context + 'Which application is EXPLICITLY named? Use current for pronouns (this/it/that) or no named application. The planner binds it/that to the previous window in this chain, or the starting window if first. A folder such as Downloads is not an app.',
                 {'current':'A window pronoun or implicit target; no application is named',
                  **{name:'The application named ' + name for name in named}})
-            qs[f'workspace{i}'] = choice(context + 'Which workspace number is explicitly requested? none if not stated.', {**{str(n):None for n in range(1,21)}, 'none':None})
+            qs[f'workspace{i}'] = choice(context + 'Which destination workspace is requested? Understand digits, spoken numbers and ordinals. The word workspace may be omitted in an app-placement request. Use none if no destination is given; never substitute a different number.', {**{str(n):None for n in range(1,21)}, 'none':None})
             qs[f'folder{i}'] = choice(context + 'Which folder is explicitly named?', {**{n:None for n in self.folder_names}, 'none':None})
             qs[f'focus{i}'] = choice(context + 'Should the user stay on the present workspace, or follow the affected app? Stay only if explicitly requested.', {'follow':'Normal foreground command', 'stay':'In the background, silently, or stay here'})
             qs[f'new{i}'] = choice(context + 'Does the user explicitly request a NEW or ANOTHER window?', {'existing':'Normal open or focus', 'new':'Explicit new or another window'})
@@ -275,8 +283,8 @@ class Router:
             if re.search(r'\bhundred\b', clauses[i]): numbers.add(100)
             if numbers:
                 qs[f'volume{i}'] = choice(context + 'Which volume percentage or amount is explicitly stated? none if unstated.', {**{str(n):None for n in sorted(numbers)}, 'none':None})
-            qs[f'complete{i}'] = {'type':'noul', 'instructions': context + 'Does this clause ask for one supported operation from supported_actions in state? Opening an app on a workspace is ONE supported operation. This/it refers to the current window and needs no application name. Put/send/chuck a window on a desktop means move it to that workspace. Only explicitly named applications must be under named_apps. Questions about battery, shortcuts or network speed are supported. Reject unknown applications, website interaction, conditions, or multiple unrelated operations in this one clause.', 'criteria':{'true':'The entire clause is supported', 'false':'Unsupported, incomplete, or only part of the clause can be done'}}
-        qs['addressed'] = {'type':'noul', 'instructions':'A user said the wake word computer followed by the transcript. Is this an instruction or question addressed to their laptop? Colloquial requests (bit louder, pull up signal, I need a terminal, screen is too dim) and questions (battery level, keyboard shortcuts, internet speed) count. Reject conversation, negated or quoted commands, narration, and word salad. Allow minor recognizer verb tense slips.', 'criteria':{'true':'An instruction OR question for the laptop', 'false':'Conversation, negation, narration, noise, or word salad'}}
+            qs[f'complete{i}'] = {'type':'noul', 'instructions': context + 'Can one operation from supported_actions achieve the entire intended result? Judge meaning, not grammatical completeness. A named app alone or with a destination is a complete request to open/move/focus it; an explicit verb is unnecessary. An app on a workspace is ONE open operation; the planner handles whether it is running. This/it refers to the current window and needs no app name. Explicitly named applications must be under named_apps. Workspace destinations must be in 1–20. Questions about battery, shortcuts or network speed are supported. Reject unsupported operations, unknown apps, negation, conditions, missing required values, or a request only partly covered by one operation.', 'criteria':{'true':'The whole intended result is supported, including shorthand or an implied action', 'false':'An unsupported result, missing required value, or only part of the request can be done'}}
+        qs['addressed'] = {'type':'noul', 'instructions':'The transcript was deliberately addressed to a laptop using its wake phrase or push-to-talk. Does it convey a desktop intent? Accept natural shorthand, fragments, app names with destinations, desired states, colloquial requests and questions. No explicit action verb or fixed phrasing is required. Reject conversation, negated or quoted commands, narration, and unrelated word salad. Allow plausible speech-recognition slips.', 'criteria':{'true':'An intended desktop action or question, including shorthand', 'false':'Conversation, negation, narration, noise, or unrelated words'}}
         return qs
 
     def decide(self, text, force_jev=False):
@@ -285,6 +293,8 @@ class Router:
             return Proposal(verdict='drop', reason='Say a direct command when you want me to act')
         if text in {'never mind', 'nevermind', 'cancel', 'stop', 'uh hang on', 'hang on'}:
             return Proposal(verdict='drop', reason='Cancelled')
+        if re.search(r'\b(?:if|unless|provided that|only when|as long as)\b', text):
+            return Proposal(verdict='drop', reason='Conditional commands are not supported; say the result you want directly')
         if not force_jev:
             try:
                 return self.local(text)

@@ -38,6 +38,40 @@ class Natural(Fixture):
   self.assertEqual([c.action for c in p.commands],['move','fullscreen','close'])
   self.assertEqual(p.commands[1].reference,'previous')
 
+ def test_app_and_destination_imply_open_without_an_api_request(self):
+  self.router.jev=Mock()
+  for phrase,app,workspace in [('files workspace 2','files',2),
+                              ('browser on three','browser',3),
+                              ('Teams desktop five','teams',5),
+                              ('the file explorer on workspace two please','file explorer',2),
+                              ('teams','teams',None)]:
+   with self.subTest(phrase=phrase):
+    p=self.router.decide(phrase)
+    self.assertEqual(p.verdict,'act'); self.assertEqual(p.route,'local')
+    self.assertEqual((p.commands[0].action,p.commands[0].app,p.commands[0].workspace),('open',app,workspace))
+  self.router.jev.ask.assert_not_called()
+
+ def test_implicit_open_can_start_a_chain_and_share_a_destination(self):
+  p=self.router.local('files workspace two then make it full screen')
+  self.assertEqual([c.action for c in p.commands],['open','fullscreen'])
+  self.assertEqual(p.commands[0].workspace,2)
+  self.assertEqual(p.commands[1].reference,'previous')
+  p=self.router.local('files and teams on workspace two')
+  self.assertEqual([(c.action,c.workspace) for c in p.commands],[('open',2),('open',2)])
+
+ def test_shorthand_still_consumes_the_entire_request(self):
+  for phrase in ['files workspace 2 if it is open','files workspace 200',
+                 'files workspace 2 then delete my documents','not files workspace 2',
+                 'uninstalledapp workspace 2','files or teams workspace 2']:
+   with self.subTest(phrase=phrase), self.assertRaises(ValueError): self.router.local(phrase)
+
+ def test_conditions_do_not_become_unconditional_launches(self):
+  self.router.jev=Mock()
+  for phrase in ['files workspace two if it is open','files workspace two unless it is closed',
+                 'files workspace two only when it is already running']:
+   with self.subTest(phrase=phrase): self.assertEqual(self.router.decide(phrase).verdict,'drop')
+  self.router.jev.ask.assert_not_called()
+
  def test_there_and_coordinated_objects(self):
   p=self.router.decide('open files and browser on workspace two then move teams there')
   self.assertEqual([c.workspace for c in p.commands],[2,2,2])
@@ -82,6 +116,34 @@ class References(Fixture):
   self.hypr=Mock(); self.hypr.query.side_effect=lambda q:copy.deepcopy(self.clients if q=='clients' else self.clients[1])
   from plan import Planner
   self.planner=Planner(self.catalog,self.cfg,self.hypr)
+ def test_shorthand_opens_a_missing_app_on_the_requested_workspace(self):
+  self.clients.clear()
+  self.hypr.query.side_effect=lambda q: [] if q=='clients' else {}
+  plan=self.planner.prepare(self.router.local('files workspace 2').commands)
+  self.assertEqual(plan.steps[0].command.action,'open')
+  self.assertEqual(plan.steps[0].command.workspace,2)
+  self.assertIsNone(plan.steps[0].target)
+ def test_shorthand_reuses_a_window_elsewhere_or_already_at_destination(self):
+  for workspace in (1,2):
+   self.clients[1]['workspace']['id']=workspace
+   plan=self.planner.prepare(self.router.local('files workspace 2').commands)
+   self.assertEqual(plan.steps[0].command.action,'focus')
+   self.assertEqual(plan.steps[0].command.workspace,2)
+   self.assertEqual(plan.steps[0].target,WindowTarget('0x2',20))
+ def test_missing_named_app_placement_launches_and_binds_later_steps(self):
+  from desktop_core.commands import Command
+  plan=self.planner.prepare([Command('move',app='outlook',workspace=5,focus=False),
+                             Command('fullscreen',reference='previous')])
+  self.assertEqual(plan.steps[0].command.action,'open')
+  self.assertEqual(plan.steps[0].command.workspace,5)
+  self.assertFalse(plan.steps[0].command.focus)
+  self.assertIsNone(plan.steps[0].target)
+  self.assertEqual(plan.steps[-1].target,ResultRef(0))
+ def test_missing_current_window_never_launches_a_guessed_app(self):
+  from desktop_core.commands import Command
+  self.hypr.query.side_effect=lambda q: [] if q=='clients' else {}
+  with self.assertRaisesRegex(ValueError,'no current window'):
+   self.planner.prepare([Command('move',workspace=2)])
  def test_it_binds_previous_and_this_stays_original(self):
   p=self.planner.prepare(self.router.local('focus teams then make it full screen then move this app to three').commands)
   self.assertEqual(p.steps[-2].target,WindowTarget('0x1',10))
