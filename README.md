@@ -6,7 +6,7 @@ Open apps, move windows, chain commands, dictate text and recall saved workspace
 arrangements. Local Whisper handles speech recognition. Common commands run locally;
 an optional Jev API key adds semantic interpretation for unfamiliar phrasing.
 
-**First public release: 0.6.0.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
+**Current public preview: 0.6.1.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
 Lua configuration and the Quickshell bar. Older Waybar/Hyprland configurations
 are not supported. English speech and commands only at present.
 

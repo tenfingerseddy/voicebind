@@ -113,6 +113,28 @@ class Capture(unittest.TestCase):
  def test_old_job_cannot_hide_new_recording(self):
   self.listener.token=4; self.listener.show('listening')
   self.listener.show('idle',token=3); self.assertEqual(self.control.snapshot()['phase'],'listening')
+ def test_ptt_completion_hides_indicator_despite_unaddressed_audio_after_release(self):
+  self.listener.command('press'); self.feed(self.loud,10); self.listener.command('release')
+  job=self.listener.work.get_nowait()
+  self.feed(self.loud,10)
+  self.assertGreater(self.listener.token,job.token)
+  self.listener.process_job(job)
+  self.assertEqual(self.control.snapshot()['phase'],'idle')
+ def test_background_audio_cannot_clear_indicator_owned_by_another_turn(self):
+  self.listener.command('press'); self.feed(self.loud,10); self.listener.command('release')
+  job=self.listener.work.get_nowait()
+  self.feed(self.loud,10)
+  self.listener.show('idle',self.listener.token)
+  self.assertEqual(self.control.snapshot()['phase'],'processing')
+  self.listener.process_job(job)
+  self.assertEqual(self.control.snapshot()['phase'],'idle')
+ def test_release_seals_ptt_audio_before_following_speech(self):
+  self.listener.command('press'); self.feed(self.loud,10); self.listener.command('release')
+  job=self.listener.work.get_nowait(); recorded=job.pcm.copy()
+  self.feed(np.full(320,2400,dtype=np.int16),25)
+  self.assertFalse(self.listener.ptt)
+  np.testing.assert_array_equal(job.pcm,recorded)
+  self.assertNotIn(2400,job.pcm)
  def test_repeated_key_press_is_not_a_new_recording(self):
   self.listener.command('press'); self.feed(self.loud,10)
   epoch=self.listener.epoch; self.listener.command('press')

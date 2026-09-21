@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1 — F10 indicator completion
+
+- Fix the indicator remaining animated after F10 release when background audio
+  starts another potential wake turn while the command is processing.
+- Keep indicator ownership separate from background audio detection, while
+  preventing an older result from hiding a newer recording.
+- Add regressions for indicator completion and excluding speech after release
+  from the finished F10 recording. All 335 Python tests pass.
+
 ## 0.6.0 — First public release
 
 - Local Whisper recognition with optional Jev semantic routing.

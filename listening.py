@@ -38,6 +38,7 @@ class Listener:
         self.work = queue.Queue(maxsize=2); self.previews = queue.Queue(maxsize=1)
         self.lock = threading.RLock()
         self.token = self.epoch = 0
+        self.ui_token = 0
         self.ptt = False; self.frames = []; self.voiced = 0
         self.wake_enabled = config['voice']['wake_enabled']
         self.armed_until = 0; self.armed_target = None
@@ -57,7 +58,13 @@ class Listener:
 
     def show(self, phase, token=None, seconds=0, **extra):
         with self.lock:
-            if token is not None and token != self.token: return
+            if token is not None:
+                # Background audio may begin a new candidate wake turn while
+                # the visible command is still processing. Its completion must
+                # still clear its own indicator, without hiding a newer one.
+                if token not in (self.token, self.ui_token): return
+                if phase in {'idle', 'waiting', 'error'} and token != self.ui_token: return
+            self.ui_token = self.token if token is None else token
             self.ui_deadline = self.clock()+seconds if seconds else 0
             dictating = phase == 'dictating' or (phase == 'processing' and self.dictation.active)
             if phase == 'dictating' or not dictating:
