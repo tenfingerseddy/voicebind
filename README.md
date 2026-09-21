@@ -6,7 +6,7 @@ Open apps, move windows, chain commands, dictate text and recall saved workspace
 arrangements. Local Whisper handles speech recognition. Common commands run locally;
 an optional Jev API key adds semantic interpretation for unfamiliar phrasing.
 
-**Current public preview: 0.7.0.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
+**Current public preview: 0.7.1.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
 Lua configuration and the Quickshell bar. Older Waybar/Hyprland configurations
 are not supported. English speech and commands only at present.
 
@@ -30,7 +30,9 @@ Run these commands as your normal user in an unlocked Omarchy session.
 The marketplace plugin requires a one-time backend setup; adding the bar icon alone
 does not start recording. Keep the plugin folder in place: the service runs from it.
 
-Prerequisites are Python 3.12+, `whisper-server`, `parecord`, `pactl`, `wpctl`,
+Backend setup supports CPython 3.12–3.14 (standard GIL builds) on Linux/glibc 2.27+
+x86_64 and aarch64. Desktop integration is tested on x86_64 Omarchy.
+Prerequisites are Python, `whisper-server`, `parecord`, `pactl`, `wpctl`,
 `wtype`, `uwsm-app`, `curl`, `flock`, Hyprland and the Omarchy Quickshell bar.
 Most are already part of Omarchy. On a compatible, up-to-date Omarchy installation:
 
@@ -45,11 +47,18 @@ python3 install.py --start
 By running `install.py --start`, you opt into the microphone service and the
 shortcut changes below. Omitting `--start` prepares the backend only.
 
-The installer creates a private Python environment, installs NumPy from PyPI, downloads the
+The installer creates a private Python environment, installs a SHA-256-verified
+NumPy wheel from the checked-in [requirements lock](requirements.txt), downloads the
 148 MB Whisper `base.en` model and checks its SHA-256 checksum. It writes a user
 service and a `~/.local/bin/voicebind` command. `--start` also installs the bar
 extension, assigns **F10**, **Shift+F10** and **Ctrl+F10**, and enables listening
 at login. Existing bindings and affected desktop files are backed up.
+
+Python dependency installation enforces `--require-hashes` and `--only-binary=:all:`.
+Only the six locked NumPy wheels (three Python versions × two architectures) are
+accepted. Setup reinstalls from a verified wheel even if the same version is already
+present. Unsupported runtimes or changed artifacts fail setup; source builds and
+unhashed dependencies are never a fallback. See [dependency verification](DEPENDENCIES.md).
 
 An existing `omarchy-voice.service` is stopped and disabled to prevent two microphone
 listeners. Review or move any personal bindings on those three keys before starting.
@@ -251,7 +260,7 @@ while Omarchy already manages the plugin.
 
 ```bash
 python3 -m venv /tmp/voicebind-dev-venv
-/tmp/voicebind-dev-venv/bin/python -m pip install -r requirements.txt
+/tmp/voicebind-dev-venv/bin/python -m pip --isolated install --require-hashes --only-binary=:all: -r requirements.txt
 /tmp/voicebind-dev-venv/bin/python -m unittest discover -s tests -q
 omarchy plugin validate .
 ```

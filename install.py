@@ -4,9 +4,11 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
+import platform
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import urllib.request
 
@@ -24,8 +26,7 @@ def config_root():
 
 
 def check():
-    if sys.version_info < (3, 12):
-        raise RuntimeError('Python 3.12 or newer is required.')
+    check_python_platform()
     missing = [cmd for cmd in COMMANDS if not shutil.which(cmd)]
     if missing:
         raise RuntimeError('Missing commands: '+', '.join(missing)+'. See README prerequisites.')
@@ -36,6 +37,29 @@ def check():
     if not (cfg/'hypr/bindings.lua').is_file() or not (cfg/'omarchy/shell.json').is_file():
         raise RuntimeError('Requires Omarchy with Lua Hyprland bindings and the Quickshell bar (tested on Omarchy 4.0.3).')
     print('Dependency and desktop configuration checks passed.')
+
+
+def check_python_platform():
+    libc, version = platform.libc_ver()
+    try:
+        glibc_ok = libc == 'glibc' and tuple(map(int, version.split('.')[:2])) >= (2, 27)
+    except ValueError:
+        glibc_ok = False
+    if (sys.implementation.name != 'cpython' or not (3, 12) <= sys.version_info[:2] <= (3, 14)
+            or sys.platform != 'linux' or platform.machine() not in {'x86_64', 'aarch64'}
+            or not glibc_ok or sysconfig.get_config_var('Py_GIL_DISABLED') == 1):
+        raise RuntimeError('Verified wheels require CPython 3.12–3.14 (standard GIL build) '
+                           'on Linux/glibc 2.27+ x86_64 or aarch64. No source build will be attempted.')
+
+
+def prepare_python():
+    subprocess.run([sys.executable, '-m', 'venv', str(data_home()/'venv')], check=True)
+    python = data_home()/'venv/bin/python'
+    # Reinstall even a matching version: an older unverified installation must
+    # not satisfy the requirement without downloading and checking the wheel.
+    subprocess.run([str(python), '-m', 'pip', '--isolated', 'install',
+                    '--require-hashes', '--only-binary=:all:', '--force-reinstall',
+                    '-r', str(ROOT/'requirements.txt')], check=True)
 
 
 def model_valid(path):
@@ -160,9 +184,7 @@ def main():
         source = ROOT/folder
         if source.is_dir() and not (state_home()/folder).exists():
             shutil.copytree(source, state_home()/folder, symlinks=True)
-    subprocess.run([sys.executable, '-m', 'venv', str(data_home()/'venv')], check=True)
-    python = data_home()/'venv/bin/python'
-    subprocess.run([str(python), '-m', 'pip', 'install', '-r', str(ROOT/'requirements.txt')], check=True)
+    prepare_python()
     prepare_model(args.model)
     write_service()
     from desktop_integration import install_command

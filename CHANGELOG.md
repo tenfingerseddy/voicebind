@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.1 — Verified Python dependencies
+
+- Lock SHA-256 hashes for every supported NumPy wheel: standard CPython
+  3.12–3.14 on Linux/glibc x86_64 and aarch64.
+- Enforce pip hash checks and binary-only installation; reinstall matching
+  versions so older unverified installations cannot bypass artifact verification.
+- Reject unsupported runtimes before setup and test all six wheel combinations
+  in CI, including rejection of tampered artifacts.
+
 ## 0.7.0 — Marketplace packaging
 
 - Publish one root manifest with author, license and permanent plugin ID

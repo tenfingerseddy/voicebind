@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.tenfingerseddy.voicebind",
   "name": "Voicebind",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Voice control, dictation, bookmarks and personal settings.",
   "kinds": [
     "service",

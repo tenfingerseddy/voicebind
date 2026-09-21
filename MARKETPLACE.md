@@ -20,7 +20,12 @@ the README. The catalog supports an installation override with `mode: "manual"`.
 Suggested note: “Requires Python/Whisper backend setup and a model download.
 Follow the README for installation and removal.”
 
-Setup installs NumPy from PyPI and downloads the 148 MB Whisper base.en model
+Setup installs NumPy from six SHA-256-locked wheels covering standard CPython
+3.12–3.14 on Linux/glibc x86_64 and aarch64. pip enforces hashes, accepts only
+wheels and reinstalls an existing matching version from the verified artifact.
+Unsupported runtimes fail before setup; there is no source-build fallback.
+The complete lock and verification process are in `requirements.txt` and
+`DEPENDENCIES.md`. Setup also downloads the 148 MB Whisper base.en model
 from Hugging Face with SHA-256 verification. The README lists all system packages.
 `install.py --start` opts into microphone access, a per-user listener service,
 F10/Shift+F10/Ctrl+F10 bindings and replacing an existing voice daemon. Affected
