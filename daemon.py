@@ -25,7 +25,8 @@ from desktop_core.apps import AppCatalog
 from desktop_core.desktop import capture_window
 from plan import Planner, Confirmation, Question
 from router import Router, Proposal, normalize
-from vt import HERE, Jev, RATE, WAKE, load_key, strip_wake, whisper
+from vt import Jev, RATE, WAKE, load_key, strip_wake, whisper
+from runtime_paths import state_home
 from configuration import load_config
 from bookmarks import Bookmarks, BookmarkPlan
 from personalization import expand_phrase
@@ -289,8 +290,8 @@ def main():
         except OSError:
             print('Jev unavailable at startup; direct commands remain available', file=sys.stderr)
     router, planner = components(jev)
-    logs = HERE / 'sessions'
-    logs.mkdir(exist_ok=True, mode=0o700)
+    logs = state_home() / 'sessions'
+    logs.mkdir(parents=True, exist_ok=True, mode=0o700)
     session = logs / f'{datetime.now():%Y%m%d-%H%M%S}-{os.getpid()}.jsonl'
     status = {'pid':os.getpid(), 'wake':WAKE, 'live':args.live, 'session':str(session), 'state':'starting'}
     log_lock = threading.Lock()

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0 — Marketplace packaging
+
+- Publish one root manifest with author, license and permanent plugin ID
+  `io.github.tenfingerseddy.voicebind`.
+- Support Omarchy plugin installation without rewriting its Git checkout.
+- Keep the Python environment, models, logs and rollback backups outside the
+  plugin folder; preserve existing personal configuration and local history.
+- Show setup instructions when the bar is installed before the speech backend.
+- Document dependencies, microphone/F10 opt-in, updates and the two-step removal
+  of the separate listener service and plugin.
+
 ## 0.6.2 — Natural app placement
 
 - Accept app/destination shorthand such as “files workspace two”, “browser on

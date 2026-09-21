@@ -1,28 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 vt_root=$(dirname -- "$(readlink -f -- "$0")")
+source "$vt_root/paths.sh"
 vt_runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/jev-voice"
 case "${1:-status}" in
-  press|release|cancel|toggle-wake) exec "$vt_root/.venv/bin/python" "$vt_root/control.py" "$1" ;;
-  settings) exec "$vt_root/.venv/bin/python" "$vt_root/panel_backend.py" open ;;
+  press|release|cancel|toggle-wake) exec "$vt_python" "$vt_root/control.py" "$1" ;;
+  settings) exec "$vt_python" "$vt_root/panel_backend.py" open ;;
   settings-window) exec /usr/bin/python "$vt_root/voice_settings.py" ;;
-  panel) exec "$vt_root/.venv/bin/python" "$vt_root/panel_backend.py" ;;
-  bookmarks) shift; exec "$vt_root/.venv/bin/python" "$vt_root/bookmark_cli.py" "$@" ;;
-  key) shift; exec "$vt_root/.venv/bin/python" "$vt_root/configuration.py" key "$@" ;;
-  config) exec "$vt_root/.venv/bin/python" "$vt_root/configuration.py" show ;;
-  capabilities) exec "$vt_root/.venv/bin/python" -c 'import sys; sys.path.insert(0,sys.argv[1]); from router import ACTIONS; from dictation import RUNTIME_ACTIONS; from bookmarks import ACTIONS as BOOKMARK_ACTIONS; print("\n".join(k+": "+v for k,v in {**ACTIONS,**RUNTIME_ACTIONS,**BOOKMARK_ACTIONS}.items() if k!="none"))' "$vt_root" ;;
+  panel) exec "$vt_python" "$vt_root/panel_backend.py" ;;
+  bookmarks) shift; exec "$vt_python" "$vt_root/bookmark_cli.py" "$@" ;;
+  key) shift; exec "$vt_python" "$vt_root/configuration.py" key "$@" ;;
+  config) exec "$vt_python" "$vt_root/configuration.py" show ;;
+  capabilities) exec "$vt_python" -c 'import sys; sys.path.insert(0,sys.argv[1]); from router import ACTIONS; from dictation import RUNTIME_ACTIONS; from bookmarks import ACTIONS as BOOKMARK_ACTIONS; print("\n".join(k+": "+v for k,v in {**ACTIONS,**RUNTIME_ACTIONS,**BOOKMARK_ACTIONS}.items() if k!="none"))' "$vt_root" ;;
   dictation-draft) exec cat "${XDG_STATE_HOME:-$HOME/.local/state}/jev-voice/dictation-draft.txt" ;;
-  uninstall) exec "$vt_root/.venv/bin/python" "$vt_root/install.py" --uninstall ;;
+  uninstall) exec "$vt_python" "$vt_root/install.py" --uninstall ;;
   start)
-    "$vt_root/.venv/bin/python" "$vt_root/desktop_integration.py" install
-    mkdir -p "$vt_root/reports"
-    if [[ ! -f "$vt_root/reports/original-service-state" ]]; then
-      systemctl --user is-enabled omarchy-voice.service >"$vt_root/reports/original-service-state" || true
+    "$vt_python" "$vt_root/desktop_integration.py" install
+    mkdir -p "$vt_state/reports"
+    if [[ ! -f "$vt_state/reports/original-service-state" ]]; then
+      systemctl --user is-enabled omarchy-voice.service >"$vt_state/reports/original-service-state" || true
     fi
     restore_original() {
       systemctl --user disable --now jev-voice.service || true
-      "$vt_root/.venv/bin/python" "$vt_root/desktop_integration.py" original || true
-      if [[ $(cat "$vt_root/reports/original-service-state") == enabled ]]; then systemctl --user enable omarchy-voice.service; fi
+      "$vt_python" "$vt_root/desktop_integration.py" original || true
+      if [[ $(cat "$vt_state/reports/original-service-state") == enabled ]]; then systemctl --user enable omarchy-voice.service; fi
       if systemctl --user cat omarchy-voice.service >/dev/null 2>&1; then systemctl --user start omarchy-voice.service; fi
     }
     systemctl --user daemon-reload
@@ -35,7 +36,7 @@ case "${1:-status}" in
     fi
     for ((vt_attempt=0; vt_attempt<300; vt_attempt++)); do
       vt_pid=$(systemctl --user show -p MainPID --value jev-voice.service)
-      if [[ -f "$vt_runtime/status.json" ]] && "$vt_root/.venv/bin/python" -c 'import json,sys; s=json.load(open(sys.argv[1])); sys.exit(s.get("state")!="listening" or str(s.get("pid"))!=sys.argv[2])' "$vt_runtime/status.json" "$vt_pid"; then
+      if [[ -f "$vt_runtime/status.json" ]] && "$vt_python" -c 'import json,sys; s=json.load(open(sys.argv[1])); sys.exit(s.get("state")!="listening" or str(s.get("pid"))!=sys.argv[2])' "$vt_runtime/status.json" "$vt_pid"; then
         "$0" status
         exit 0
       fi
@@ -52,18 +53,18 @@ case "${1:-status}" in
       exit 1
     fi
     systemctl --user disable --now jev-voice.service
-    "$vt_root/.venv/bin/python" "$vt_root/desktop_integration.py" original
-    if [[ ! -f "$vt_root/reports/original-service-state" ]] || [[ $(cat "$vt_root/reports/original-service-state") == enabled ]]; then
+    "$vt_python" "$vt_root/desktop_integration.py" original
+    if [[ ! -f "$vt_state/reports/original-service-state" ]] || [[ $(cat "$vt_state/reports/original-service-state") == enabled ]]; then
       systemctl --user enable omarchy-voice.service
     fi
     systemctl --user start omarchy-voice.service
     echo 'Legacy Voicebind restored.'
     ;;
   status)
-    "$vt_root/.venv/bin/python" "$vt_root/control.py" status || true
+    "$vt_python" "$vt_root/control.py" status || true
     systemctl --user --no-pager --plain is-active jev-voice.service || true
-    if [[ -f "$vt_runtime/status.json" ]]; then "$vt_root/.venv/bin/python" -m json.tool "$vt_runtime/status.json"; fi
-    pactl -f json list source-outputs | "$vt_root/.venv/bin/python" -c 'import json,sys; print("Microphone holders:",", ".join(s.get("properties",{}).get("application.name","?") for s in json.load(sys.stdin)))'
+    if [[ -f "$vt_runtime/status.json" ]]; then "$vt_python" -m json.tool "$vt_runtime/status.json"; fi
+    pactl -f json list source-outputs | "$vt_python" -c 'import json,sys; print("Microphone holders:",", ".join(s.get("properties",{}).get("application.name","?") for s in json.load(sys.stdin)))'
     ;;
   log) journalctl --user -u jev-voice.service -n 30 --no-pager ;;
   text) shift; exec "$vt_root/run.sh" --text "$*" ;;

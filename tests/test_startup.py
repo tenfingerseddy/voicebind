@@ -15,10 +15,11 @@ class FirstStartup(unittest.TestCase):
             root = Path(directory)
             project = root/'checkout'
             project.mkdir()
-            (project/'.venv/bin').mkdir(parents=True)
-            (project/'.venv/bin/python').symlink_to(sys.executable)
+            (root/'data/voicebind/venv/bin').mkdir(parents=True)
+            (root/'data/voicebind/venv/bin/python').symlink_to(sys.executable)
             command = project/'voice-control'
             shutil.copy2(Path(__file__).resolve().parents[1]/'voice-control', command)
+            shutil.copy2(Path(__file__).resolve().parents[1]/'paths.sh', project/'paths.sh')
             (project/'desktop_integration.py').write_text('import sys\nassert sys.argv[1] == "install"\n')
             (project/'control.py').write_text('print("status fixture")\n')
             runtime = root/'runtime/jev-voice'
@@ -47,7 +48,8 @@ if 'show' in args:
             pactl.chmod(0o755)
             calls = root/'calls.jsonl'
             env = dict(os.environ, PATH=str(bin_dir)+os.pathsep+os.environ.get('PATH',''),
-                       XDG_RUNTIME_DIR=str(root/'runtime'), TEST_CALLS=str(calls))
+                       XDG_RUNTIME_DIR=str(root/'runtime'), XDG_DATA_HOME=str(root/'data'),
+                       XDG_STATE_HOME=str(root/'state'), TEST_CALLS=str(calls))
             result = subprocess.run([str(command), 'start'], env=env, capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
             actions = [json.loads(line) for line in calls.read_text().splitlines()]

@@ -6,6 +6,7 @@ TestCase {
     id: test
     name: "PopupPaging"
     width: 548; height: 600
+    visible: true
     when: windowShown
     QtObject {
         id: mockBackend
@@ -130,6 +131,19 @@ TestCase {
                 panel.page = page; wait(20); checkBounds(panel)
             }
         }
+    }
+    function test_missing_backend_shows_setup_without_starting_listener() {
+        mockBackend.document = null
+        mockBackend.online = false
+        panel.draft = null
+        panel.height = 520
+        wait(20)
+        verify(button(panel, "Setup guide").visible)
+        verify(!button(panel, "Start").enabled)
+        checkBounds(panel)
+        button(panel, "Retry").clicked()
+        compare(mockBackend.requestValue.action, "panel")
+        mockBackend.online = true
     }
     function test_bookmark_phrase_draft_survives_paging() {
         panel.page = "Bookmarks"

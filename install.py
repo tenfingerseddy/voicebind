@@ -10,6 +10,8 @@ import sys
 import tempfile
 import urllib.request
 
+from runtime_paths import PLUGIN_ID, data_home, state_home
+
 ROOT = Path(__file__).resolve().parent
 MODEL_SHA256 = 'a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002'
 MODEL_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin'
@@ -28,6 +30,9 @@ def check():
     if missing:
         raise RuntimeError('Missing commands: '+', '.join(missing)+'. See README prerequisites.')
     cfg = config_root()
+    plugin = cfg/'omarchy/plugins'/PLUGIN_ID
+    if (plugin/'.git').exists() and plugin.resolve() != ROOT.resolve():
+        raise RuntimeError(f'Voicebind is managed by Omarchy at {plugin}. Run its install.py instead.')
     if not (cfg/'hypr/bindings.lua').is_file() or not (cfg/'omarchy/shell.json').is_file():
         raise RuntimeError('Requires Omarchy with Lua Hyprland bindings and the Quickshell bar (tested on Omarchy 4.0.3).')
     print('Dependency and desktop configuration checks passed.')
@@ -41,9 +46,11 @@ def model_valid(path):
 
 
 def prepare_model(source=None):
-    dest = ROOT/'models/ggml-base.en.bin'
+    dest = data_home()/'models/ggml-base.en.bin'
     if model_valid(dest):
         return
+    if source is None and model_valid(ROOT/'models/ggml-base.en.bin'):
+        source = ROOT/'models/ggml-base.en.bin'
     dest.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix='.download-', dir=dest.parent)
     temp = Path(name)
@@ -77,6 +84,7 @@ def service_text(root):
 Description=Voicebind — local speech and desktop control
 After=graphical-session.target pipewire-pulse.service
 PartOf=graphical-session.target
+ConditionPathExists={str(root/'run.sh').replace('%', '%%')}
 Conflicts=omarchy-voice.service
 StartLimitIntervalSec=60
 StartLimitBurst=5
@@ -93,6 +101,10 @@ RuntimeDirectory=jev-voice
 RuntimeDirectoryMode=0700
 UMask=0077
 Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment={quote('XDG_CONFIG_HOME='+str(config_root()))}
+Environment={quote('XDG_DATA_HOME='+str(data_home().parent))}
+Environment={quote('XDG_STATE_HOME='+str(state_home().parent))}
 
 [Install]
 WantedBy=graphical-session.target
@@ -103,7 +115,7 @@ def write_service():
     path = config_root()/'systemd/user/jev-voice.service'
     path.parent.mkdir(parents=True, exist_ok=True)
     rendered = service_text(ROOT)
-    backup = ROOT/'backups/previous-jev-voice.service'
+    backup = state_home()/'backups/previous-jev-voice.service'
     if path.exists() and path.read_text() != rendered and not backup.exists():
         backup.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, backup)
@@ -117,7 +129,7 @@ def uninstall():
     subprocess.run(['systemctl', '--user', 'disable', '--now', 'jev-voice.service'], check=True)
     from desktop_integration import integrate
     integrate(original=True)
-    backup = ROOT/'backups/previous-jev-voice.service'
+    backup = state_home()/'backups/previous-jev-voice.service'
     if backup.exists():
         shutil.copy2(backup, path)
     else:
@@ -140,8 +152,16 @@ def main():
     check()
     if args.check:
         return
-    subprocess.run([sys.executable, '-m', 'venv', str(ROOT/'.venv')], check=True)
-    python = ROOT/'.venv/bin/python'
+    os.umask(0o077)
+    # Older releases kept these files in the checkout. Preserve rollback/history
+    # before switching paths; never overwrite newer external state on an update.
+    state_home().mkdir(parents=True, exist_ok=True, mode=0o700)
+    for folder in ('backups', 'reports', 'sessions'):
+        source = ROOT/folder
+        if source.is_dir() and not (state_home()/folder).exists():
+            shutil.copytree(source, state_home()/folder, symlinks=True)
+    subprocess.run([sys.executable, '-m', 'venv', str(data_home()/'venv')], check=True)
+    python = data_home()/'venv/bin/python'
     subprocess.run([str(python), '-m', 'pip', 'install', '-r', str(ROOT/'requirements.txt')], check=True)
     prepare_model(args.model)
     write_service()
@@ -150,6 +170,8 @@ def main():
     subprocess.run(['systemctl', '--user', 'daemon-reload'], check=True)
     print('Setup complete. Run ~/.local/bin/voicebind start to install the bar and F10 shortcuts and begin listening.')
     if args.start:
+        # enable --now alone leaves an already running older checkout alive.
+        subprocess.run(['systemctl', '--user', 'stop', 'jev-voice.service'], check=True)
         subprocess.run([str(ROOT/'voice-control'), 'start'], check=True)
 
 

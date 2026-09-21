@@ -87,7 +87,7 @@ Item {
     Process {
         id: worker
         property string payload: ""
-        command: [String(Quickshell.env("HOME")) + "/.local/bin/voicebind", "panel"]
+        command: ["sh", "-c", 'if [ -x "$HOME/.local/bin/voicebind" ] && [ "$(basename -- "$(readlink -f -- "$HOME/.local/bin/voicebind")")" = voice-control ]; then exec "$HOME/.local/bin/voicebind" panel; else printf \'{"ok":false,"message":"Complete Voicebind setup to enable listening and settings."}\\n\'; fi']
         stdinEnabled: true
         onStarted: { write(payload + "\n"); payload = "" }
         stdout: StdioCollector {

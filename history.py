@@ -2,8 +2,9 @@
 import json
 import math
 from pathlib import Path
+from runtime_paths import state_home
 
-SESSIONS = Path(__file__).resolve().parent/'sessions'
+SESSIONS = state_home()/'sessions'
 MAX_FILES = 24
 MAX_BYTES = 256 * 1024
 MAX_ENTRIES = 100

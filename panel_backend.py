@@ -11,6 +11,7 @@ import time
 
 from configuration import config_dir, config_path, load_config, load_key, save_config, save_key
 from control import request
+from runtime_paths import PLUGIN_ID
 
 
 def revision(raw):
@@ -141,7 +142,7 @@ def handle(data):
 
 def open_panel():
     from desktop_integration import environment
-    result = subprocess.run(['omarchy', 'shell', 'shell', 'summon', 'jev-voice', '{}'],
+    result = subprocess.run(['omarchy', 'shell', 'shell', 'summon', PLUGIN_ID, '{}'],
                             capture_output=True, text=True, timeout=3, env=environment())
     if result.returncode or result.stdout.strip() != 'ok':
         raise RuntimeError('Voicebind bar extension is unavailable. Run voicebind start to install it.')

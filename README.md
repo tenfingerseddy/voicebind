@@ -6,7 +6,7 @@ Open apps, move windows, chain commands, dictate text and recall saved workspace
 arrangements. Local Whisper handles speech recognition. Common commands run locally;
 an optional Jev API key adds semantic interpretation for unfamiliar phrasing.
 
-**Current public preview: 0.6.2.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
+**Current public preview: 0.7.0.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
 Lua configuration and the Quickshell bar. Older Waybar/Hyprland configurations
 are not supported. English speech and commands only at present.
 
@@ -27,7 +27,8 @@ implemented action catalogue. Chains contain up to four actions; workspaces are 
 ## Install
 
 Run these commands as your normal user in an unlocked Omarchy session.
-Keep the checkout in place: the service runs from it.
+The marketplace plugin requires a one-time backend setup; adding the bar icon alone
+does not start recording. Keep the plugin folder in place: the service runs from it.
 
 Prerequisites are Python 3.12+, `whisper-server`, `parecord`, `pactl`, `wpctl`,
 `wtype`, `uwsm-app`, `curl`, `flock`, Hyprland and the Omarchy Quickshell bar.
@@ -35,13 +36,16 @@ Most are already part of Omarchy. On a compatible, up-to-date Omarchy installati
 
 ```bash
 sudo pacman -S --needed git python python-pip whisper-cpp libpulse wtype curl
-git clone https://github.com/tenfingerseddy/voicebind.git ~/voicebind
-cd ~/voicebind
+omarchy plugin add https://github.com/tenfingerseddy/voicebind.git --enable
+cd ~/.config/omarchy/plugins/io.github.tenfingerseddy.voicebind
 python3 install.py --check
 python3 install.py --start
 ```
 
-The installer creates a private Python environment, installs NumPy, downloads the
+By running `install.py --start`, you opt into the microphone service and the
+shortcut changes below. Omitting `--start` prepares the backend only.
+
+The installer creates a private Python environment, installs NumPy from PyPI, downloads the
 148 MB Whisper `base.en` model and checks its SHA-256 checksum. It writes a user
 service and a `~/.local/bin/voicebind` command. `--start` also installs the bar
 extension, assigns **F10**, **Shift+F10** and **Ctrl+F10**, and enables listening
@@ -49,7 +53,13 @@ at login. Existing bindings and affected desktop files are backed up.
 
 An existing `omarchy-voice.service` is stopped and disabled to prevent two microphone
 listeners. Review or move any personal bindings on those three keys before starting.
-Your native F9 dictation binding is not changed.
+Your native F9 dictation binding is not changed. No root service is installed;
+only the package prerequisites above require administrator access.
+
+Models and Python dependencies live in `~/.local/share/voicebind/`. History,
+service diagnostics and rollback backups live in `~/.local/state/voicebind/`.
+`XDG_DATA_HOME` and `XDG_STATE_HOME` are respected. These files stay outside the
+plugin checkout so Omarchy can validate, update and remove it safely.
 
 To prepare without starting the listener or changing the bar/shortcuts, omit
 `--start`. You can reuse an existing model with
@@ -79,8 +89,8 @@ word; they do not rewrite dictated prose or train an acoustic model.
 **Save and apply** preserves other configuration and restarts the listener when
 idle. Advanced settings are documented in [config.example.toml](config.example.toml).
 The private config lives at `~/.config/jev-voice/config.toml` (or under
-`$XDG_CONFIG_HOME`). Internal `jev-voice` service, plugin and config names are
-retained for compatibility; the application is called Voicebind.
+`$XDG_CONFIG_HOME`). Internal `jev-voice` service, socket and config names are
+retained for compatibility. The plugin ID is `io.github.tenfingerseddy.voicebind`.
 
 The **silence wait** is how long a wake command must go quiet before recognition
 finishes: 200–1500 ms, default 360 ms. Lower it for faster responses; raise it if
@@ -178,7 +188,8 @@ Ambiguous window matches can require attention. Unrelated windows are left open.
 
 Speech recognition runs locally. Raw microphone audio stays in memory; unrelated
 room speech is not written to command history. Addressed command transcripts,
-outcomes and timings are stored locally in `sessions/` inside the checkout.
+outcomes and timings are stored locally in `~/.local/state/voicebind/sessions/`
+(or under `$XDG_STATE_HOME`).
 History displays the latest entries; session files are not automatically pruned.
 
 If you configure a Jev key, semantic fallback sends the command transcript and
@@ -199,32 +210,55 @@ voicebind stop                   # stop for this session
 voicebind start                  # start and enable at login
 voicebind text computer open files  # plan a command without executing it
 
-# Update from inside the checkout:
-git pull --ff-only
-python3 install.py
+# Update the plugin and its backend dependencies:
 voicebind stop
+omarchy plugin update io.github.tenfingerseddy.voicebind
+python3 ~/.config/omarchy/plugins/io.github.tenfingerseddy.voicebind/install.py
 voicebind start
+omarchy restart shell
 
-# Remove the service, bar entry, launcher and managed shortcuts:
+# Remove the backend FIRST, then the plugin:
 voicebind uninstall
+omarchy plugin remove io.github.tenfingerseddy.voicebind
 ```
 
-Uninstall keeps your settings, model, local history and backups. The checkout can
-be removed afterwards. If you replaced the earlier Voicebind app and want it back,
-run `voicebind original` instead. It restores the previous command/bindings and
-starts the legacy service. Other voice daemons should not run alongside Voicebind.
+The listener is a separate user service. Disabling or removing the bar plugin
+alone does not uninstall that service or its shortcuts. Use both removal commands
+in the order above. Uninstall stops and disables the listener, removes its launcher
+and command, and restores backed-up shortcuts. A previous command/service file is
+restored if present; a previous voice service is not automatically started.
+Settings, keys, bookmarks, models, history and backups are retained outside the
+plugin folder. Delete those personal files separately only if you no longer want them.
+
+If you replaced the earlier Voicebind app and want it running again, use
+`voicebind original` instead. Other voice daemons should not run alongside Voicebind.
+
+### Existing manual installations
+
+A checkout outside the plugin folder is still supported: `git pull --ff-only`,
+`python3 install.py`, then `voicebind stop` and `voicebind start`. Setup copies old
+checkout-local history and rollback backups to the state folder when none already
+exist, and reuses a valid local model. The original files are kept.
+
+To move a manual installation to Omarchy's plugin manager, first run
+`voicebind uninstall`, then remove its disabled bar plugin with
+`omarchy plugin remove io.github.tenfingerseddy.voicebind` (older releases use
+`jev-voice`). Follow the installation steps above. Existing config, app aliases,
+API key and bookmarks continue to work. Do not run setup from a second checkout
+while Omarchy already manages the plugin.
 
 ## Development
 
 ```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m unittest discover -s tests -q
+python3 -m venv /tmp/voicebind-dev-venv
+/tmp/voicebind-dev-venv/bin/python -m pip install -r requirements.txt
+/tmp/voicebind-dev-venv/bin/python -m unittest discover -s tests -q
+omarchy plugin validate .
 ```
 
 These tests use synthetic fixtures and mocked desktop actions. They do not need an
 API key or model. Qt 6 layout/paging tests are described in [tests/qml/README.md](tests/qml/README.md).
-To check the real classifier separately, run `.venv/bin/python tests/check_jev.py`.
+To check the real classifier separately, run `/tmp/voicebind-dev-venv/bin/python tests/check_jev.py`.
 This optional check uses your Jev key and normal API usage, with synthetic app
 names and prepared plans; it never executes desktop actions.
 Testing on other machines, microphones and themes is welcome. See

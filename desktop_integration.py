@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import time
+from runtime_paths import PLUGIN_ID, state_home
 
 ROOT = Path(__file__).resolve().parent
 BIN_DIR = Path.home()/'.local/bin'
@@ -37,6 +38,12 @@ def environment():
 
 
 def install_overlay(dest):
+    if dest.resolve() == ROOT.resolve():
+        # Native `omarchy plugin add` already installed the repository. Do not
+        # rewrite tracked files: future fast-forward updates must stay clean.
+        return
+    if (dest/'.git').exists():
+        raise RuntimeError(f'Voicebind is managed by Omarchy at {dest}. Run its install.py instead.')
     dest.mkdir(parents=True,exist_ok=True)
     source = ROOT/'omarchy-plugin'
     assets = {p.relative_to(source): p.read_bytes() for p in sorted(source.rglob('*'))
@@ -50,8 +57,9 @@ def install_overlay(dest):
         path = dest/revision/name
         path.parent.mkdir(parents=True,exist_ok=True)
         if not path.exists(): path.write_bytes(content)
-    manifest = json.loads((source/'manifest.json').read_text())
-    manifest['entryPoints'] = {key: revision+'/'+entry for key, entry in manifest['entryPoints'].items()}
+    manifest = json.loads((ROOT/'manifest.json').read_text())
+    manifest['entryPoints'] = {key: revision+'/'+str(Path(entry).relative_to('omarchy-plugin'))
+                               for key, entry in manifest['entryPoints'].items()}
     rendered = json.dumps(manifest,indent=2)+'\n'
     path = dest/'manifest.json'
     if not path.exists() or path.read_text() != rendered: path.write_text(rendered)
@@ -75,8 +83,10 @@ def install_settings_launcher():
 def install_command(original=False):
     """Keep the original entry point available for the explicit rollback."""
     path = BIN_DIR/'voicebind'
-    backup = ROOT/'backups/original-voicebind-command'
+    backup = state_home()/'backups/original-voicebind-command'
     if original:
+        if not (path.is_symlink() and path.resolve() == ROOT/'voice-control'):
+            return  # A user-installed replacement is not ours to remove.
         if backup.exists() or backup.is_symlink():
             path.unlink(missing_ok=True)
             shutil.copy2(backup, path, follow_symlinks=False)
@@ -94,6 +104,10 @@ def install_command(original=False):
 
 
 def integrate(original=False):
+    config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home()/'.config')))
+    dest = config/'omarchy/plugins'/PLUGIN_ID
+    if not original and (dest/'.git').exists() and dest.resolve() != ROOT.resolve():
+        raise RuntimeError(f'Voicebind is managed by Omarchy at {dest}. Run its install.py instead.')
     install_command(original)
     if not original:
         install_settings_launcher()
@@ -101,14 +115,16 @@ def integrate(original=False):
         launcher = Path(os.environ.get('XDG_DATA_HOME', str(Path.home()/'.local/share')))/'applications/voicebind-settings.desktop'
         if launcher.exists() and str(ROOT/'voice-control') in launcher.read_text():
             launcher.unlink()
-    config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home()/'.config')))
     path = config/'hypr/bindings.lua'
+    backup = state_home()/'backups/original-voice-bindings.lua'
+    if original and not backup.exists():
+        # Setup without --start installed no shortcuts or bar integration.
+        return
     text = path.read_text()
-    backup = ROOT/'backups/original-voice-bindings.lua'
     match = BLOCK.search(text)
     if not original and not backup.exists():
-        backup.parent.mkdir(exist_ok=True)
-        backup.write_text(match[0] if match and 'BEGIN omarchy-voice' in match[0] else '')
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        backup.write_text(match[0] if match else '')
     if original:
         old = backup.read_text() if backup.exists() else ''
         if old:
@@ -124,23 +140,27 @@ def integrate(original=False):
         path.write_text(updated)
     shell_path = config/'omarchy/shell.json'
     shell = json.loads(shell_path.read_text())
-    plugins = [p for p in shell.get('plugins',[]) if (p.get('id') if isinstance(p,dict) else p) != 'jev-voice']
-    old_bar = ROOT/'backups/original-voice-bar.json'
+    ident = lambda p: p.get('id') if isinstance(p, dict) else p
+    related = {PLUGIN_ID, 'jev-voice', 'voicebind'}
+    plugins = [p for p in shell.get('plugins',[]) if ident(p) not in related]
+    old_bar = state_home()/'backups/original-voice-bar.json'
     if not original and not old_bar.exists():
         old_bar.parent.mkdir(parents=True,exist_ok=True)
+        old_ids = [ident(p) for rows in shell.get('bar',{}).get('layout',{}).values()
+                   for p in rows if ident(p) in {'voicebind', 'jev-voice'}]
         old_bar.write_text(json.dumps({'disabled': shell.get('disabledPlugins', []),
-                                      'voicebind': any((p.get('id') if isinstance(p,dict) else p) == 'voicebind'
-                                                      for rows in shell.get('bar',{}).get('layout',{}).values()
-                                                      for p in rows)},indent=2)+'\n')
-    disabled = [p for p in shell.get('disabledPlugins',[]) if p not in {'jev-voice','voicebind'}]
+                                      'replacement_id': next(iter(old_ids), None),
+                                      'plugins': [p for p in shell.get('plugins', []) if ident(p) in {'voicebind', 'jev-voice'}]}, indent=2)+'\n')
+    prior = json.loads(old_bar.read_text()) if old_bar.exists() else {}
+    disabled = [p for p in shell.get('disabledPlugins',[]) if p not in related]
     if not original:
-        dest = config/'omarchy/plugins/jev-voice'
         install_overlay(dest)
-        plugins.append({'id':'jev-voice'})
-        disabled.append('voicebind')
-        plugins = [p for p in plugins if (p.get('id') if isinstance(p,dict) else p) != 'voicebind']
-    elif old_bar.exists():
-        disabled += [p for p in json.loads(old_bar.read_text())['disabled'] if p in {'voicebind','jev-voice'}]
+        plugins.append({'id':PLUGIN_ID})
+        disabled += ['voicebind', 'jev-voice']
+    else:
+        disabled += [p for p in prior.get('disabled', []) if p in {'voicebind','jev-voice'}]
+        disabled.append(PLUGIN_ID)
+        plugins += prior.get('plugins', [])
     shell['disabledPlugins'] = disabled
     bar = shell.setdefault('bar',{})
     layout = bar.get('layout')
@@ -155,14 +175,14 @@ def integrate(original=False):
             updated_rows = []
             for item in rows:
                 ident = item.get('id') if isinstance(item,dict) else item
-                if ident in {'voicebind','jev-voice'}:
+                if ident in related:
                     if not found:
-                        restore = original and old_bar.exists() and json.loads(old_bar.read_text())['voicebind']
-                        if not original or restore: updated_rows.append({'id':'voicebind' if original else 'jev-voice'})
+                        restore_id = prior.get('replacement_id', 'voicebind' if prior.get('voicebind') else None)
+                        if not original or restore_id: updated_rows.append({'id':restore_id if original else PLUGIN_ID})
                         found = True
                 else: updated_rows.append(item)
             layout[section] = updated_rows
-        if not found and not original: layout.setdefault('right',[]).append({'id':'jev-voice'})
+        if not found and not original: layout.setdefault('right',[]).append({'id':PLUGIN_ID})
     shell['plugins'] = plugins
     rendered=json.dumps(shell,indent=2)+'\n'
     if rendered != shell_path.read_text():

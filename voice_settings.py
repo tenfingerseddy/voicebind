@@ -27,7 +27,8 @@ from desktop_integration import environment
 from personalization import phrase_key, validate_phrases
 
 ROOT = Path(__file__).resolve().parent
-PYTHON = str(ROOT/'.venv/bin/python')
+from runtime_paths import data_home
+PYTHON = str(data_home()/'venv/bin/python')
 
 
 def label(text, style=None):

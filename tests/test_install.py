@@ -17,7 +17,7 @@ class Setup(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
         for mock in (patch.object(install, 'ROOT', self.root/'voice project'),
-                     patch.dict(os.environ, {'XDG_CONFIG_HOME': str(self.root/'config')})):
+                     patch.dict(os.environ, {'XDG_CONFIG_HOME': str(self.root/'config'), 'XDG_DATA_HOME': str(self.root/'data'), 'XDG_STATE_HOME': str(self.root/'state')})):
             mock.start()
             self.addCleanup(mock.stop)
 
@@ -34,14 +34,14 @@ class Setup(unittest.TestCase):
         install.write_service()
         install.write_service()
         self.assertEqual(path.read_text(), install.service_text(install.ROOT))
-        self.assertEqual((install.ROOT/'backups/previous-jev-voice.service').read_text(), 'previous service')
+        self.assertEqual((install.state_home()/'backups/previous-jev-voice.service').read_text(), 'previous service')
 
     def test_model_is_verified_before_replacing_and_temporary_file_removed(self):
         source = self.root/'model.bin'
         source.write_bytes(b'valid test model')
         with patch.object(install, 'MODEL_SHA256', hashlib.sha256(source.read_bytes()).hexdigest()):
             install.prepare_model(source)
-            target = install.ROOT/'models/ggml-base.en.bin'
+            target = install.data_home()/'models/ggml-base.en.bin'
             self.assertEqual(target.read_bytes(), source.read_bytes())
             target.write_bytes(b'old model')
             source.write_bytes(b'corrupt download')
@@ -58,7 +58,7 @@ class Setup(unittest.TestCase):
              redirect_stdout(StringIO()):
             install.prepare_model()
         request.assert_called_once_with(install.MODEL_URL, timeout=60)
-        self.assertEqual((install.ROOT/'models/ggml-base.en.bin').read_bytes(), data)
+        self.assertEqual((install.data_home()/'models/ggml-base.en.bin').read_bytes(), data)
 
     def test_missing_desktop_is_rejected_before_setup(self):
         with patch('install.shutil.which', return_value='/bin/example'):

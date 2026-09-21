@@ -5,7 +5,7 @@ import qs.Ui as Ui
 
 Ui.BarWidget {
     id: root
-    moduleName: "jev-voice"
+    moduleName: "io.github.tenfingerseddy.voicebind"
     readonly property bool opened: panel.opened
     readonly property bool popoutSwitchClosing: panel.popoutSwitchClosing
     implicitWidth: button.implicitWidth

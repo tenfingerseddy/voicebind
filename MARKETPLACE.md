@@ -1,0 +1,36 @@
+# Marketplace submission
+
+Repository: https://github.com/tenfingerseddy/voicebind
+
+Category: **Productivity**
+
+Tags: **AI**, **Bar**, **Workspaces**
+
+Plugin ID: `io.github.tenfingerseddy.voicebind`
+
+Maintainer notes for the [submission form](https://plugins.omarchy.org/publish.html):
+
+Voicebind provides local Whisper voice control, dictation, window/workspace
+bookmarks and a native Quickshell settings/history popup. Tested on Omarchy 4.0.3
+and Hyprland 0.56.2 with Lua bindings. English only in this public preview.
+
+Please list this as **Manual setup**: the root plugin installs through
+`omarchy plugin add`, but the speech backend needs the explicit setup steps in
+the README. The catalog supports an installation override with `mode: "manual"`.
+Suggested note: “Requires Python/Whisper backend setup and a model download.
+Follow the README for installation and removal.”
+
+Setup installs NumPy from PyPI and downloads the 148 MB Whisper base.en model
+from Hugging Face with SHA-256 verification. The README lists all system packages.
+`install.py --start` opts into microphone access, a per-user listener service,
+F10/Shift+F10/Ctrl+F10 bindings and replacing an existing voice daemon. Affected
+files are backed up. The bar alone does not start microphone capture.
+
+Backend data lives outside the plugin checkout. Removal requires `voicebind
+uninstall` **before** `omarchy plugin remove io.github.tenfingerseddy.voicebind`;
+Omarchy has no backend uninstallation hook. User settings, keys and history are
+retained. Optional Jev requests send command transcripts and app/action choices;
+speech recognition and dictation stay local. There is no analytics service.
+
+MIT license, including the retained desktop component notice. No preview assets
+are included; the marketplace can use its fallback preview.

@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "id": "jev-voice",
+  "id": "io.github.tenfingerseddy.voicebind",
   "name": "Voicebind",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Voice control, dictation, bookmarks and personal settings.",
   "kinds": [
     "service",
     "bar-widget"
   ],
   "entryPoints": {
-    "service": "Service.qml",
-    "barWidget": "BarWidget.qml"
+    "service": "omarchy-plugin/Service.qml",
+    "barWidget": "omarchy-plugin/BarWidget.qml"
   },
   "barWidget": {
     "displayName": "Voicebind",
@@ -18,5 +18,7 @@
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"
-  }
+  },
+  "author": "Kane Snyder",
+  "license": "MIT"
 }

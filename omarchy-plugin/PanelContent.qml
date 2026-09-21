@@ -76,7 +76,7 @@ FocusScope {
         RowLayout {
             Icon { Layout.preferredWidth: Style.space(27); Layout.preferredHeight: Style.space(27); foreground: Color.popups.text }
             Label { Layout.fillWidth: true; text: "Voicebind"; font.pixelSize: Style.font.heading; font.bold: true }
-            Button { text: backend.online ? (backend.status.wake_enabled ? "Pause wake" : "Resume wake") : "Start"; enabled: !backend.busy; onClicked: backend.online ? backend.control("toggle-wake") : backend.request({action: "start"}) }
+            Button { text: backend.online ? (backend.status.wake_enabled ? "Pause wake" : "Resume wake") : "Start"; enabled: !backend.busy && root.draft !== null; onClicked: backend.online ? backend.control("toggle-wake") : backend.request({action: "start"}) }
             Button { text: "Cancel"; visible: backend.online && backend.status.phase !== "idle"; onClicked: backend.control("cancel") }
         }
         Label {
@@ -86,6 +86,7 @@ FocusScope {
         }
         Label { Layout.fillWidth: true; visible: backend.status.phase === "waiting" && !!backend.status.prompt; text: backend.status.prompt || ""; color: Color.accent }
         RowLayout {
+            visible: root.draft !== null
             spacing: Style.space(6)
             Repeater {
                 model: ["Voice", "Phrases", "Apps", "Bookmarks", "History"]
@@ -97,6 +98,18 @@ FocusScope {
         Item {
             id: body
             Layout.fillWidth: true; Layout.fillHeight: true
+            ColumnLayout {
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                visible: root.draft === null && !backend.busy
+                spacing: Style.space(16)
+                Label { text: "Set up Voicebind"; font.bold: true; font.pixelSize: Style.font.heading }
+                Label { Layout.fillWidth: true; text: "The bar extension is installed. Follow the setup guide to add local speech recognition and enable your microphone and F10 shortcuts." }
+                Label { Layout.fillWidth: true; text: "Setup downloads the English speech model (148 MB). A Jev API key is optional."; color: Color.muted }
+                RowLayout {
+                    Button { text: "Setup guide"; primary: true; onClicked: Qt.openUrlExternally("https://github.com/tenfingerseddy/voicebind#install") }
+                    Button { text: "Retry"; onClicked: backend.request({action: "panel"}) }
+                }
+            }
             ColumnLayout {
                 anchors.fill: parent
                 visible: root.page === "Voice" && root.draft !== null
