@@ -4,12 +4,13 @@ Natural voice control for Omarchy with **Jev AI** and **local Whisper**.
 Say **“computer”** or hold **F10**, then speak.
 
 Open apps, move windows, chain commands, dictate text and recall saved workspace
-arrangements. Local Whisper handles speech recognition. Common commands run locally;
-an optional Jev API key adds semantic interpretation for unfamiliar phrasing.
+arrangements. Local Whisper handles speech recognition. With a Jev API key, Jev
+interprets desktop commands first. Local interpretation remains available without
+a key or when the API is unavailable.
 
 ![Voicebind: local Whisper speech recognition, optional Jev AI, themed settings and dictation waveform](preview.png)
 
-**Current public preview: 0.7.1.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
+**Current public preview: 0.7.2.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
 Lua configuration and the Quickshell bar. Older Waybar/Hyprland configurations
 are not supported. English speech and commands only at present.
 
@@ -88,7 +89,7 @@ The settings popup has five tabs and uses pages rather than scrolling:
 
 | Tab | Settings |
 | --- | --- |
-| Voice | Listening: wake phrase, microphone, silence wait, focus behavior. Appearance: indicator size and position. Jev: optional API key. |
+| Voice | Listening: wake phrase, microphone, silence wait, focus behavior. Appearance: indicator size and position. Jev: API key, confidence rejection and threshold. |
 | Phrases | Map your own wording or recurring recognition slips to supported commands. |
 | Apps | Assign installed applications to everyday names and personal aliases. |
 | Bookmarks | Save, restore and edit desktop arrangements and their spoken phrases. |
@@ -112,7 +113,8 @@ shows total time from end of speech or F10 release, plus component timings.
 ## Optional Jev classifier
 
 Common supported commands, personal phrases and dictation work without an API key.
-For semantic fallback, enter your own Jev key under **Voice → Jev**, or run:
+To use Jev as the first desktop-command interpreter, enter your own key under
+**Voice → Jev**, or run:
 
 ```bash
 voicebind key
@@ -125,6 +127,20 @@ supported; the legacy `~/.config/typesafe/env` file is read if no newer key exis
 The adapter currently uses `api.typesafe.ai/v1/systemone`, model `jev-1.13.0`;
 `VT_JEV_MODEL` overrides the model. It is not a generic OpenAI-compatible endpoint.
 Provider access and charges are separate from Voicebind.
+
+**Voice → Jev → Reject low confidence** controls how uncertain interpretations
+are handled. It defaults to **off**: use Jev's highest-probability supported action,
+without rejecting it for a low score. Turn it **on** to skip interpretations below
+**Minimum confidence (%)**, adjustable from 0–100 (initially 60). History explains
+the score and threshold for skipped commands. This measures Jev's interpretation,
+not Whisper's transcription accuracy. Missing targets, unsupported operations and
+execution errors can still prevent a command from running; this setting does not
+invent a missing app or workspace. Cancellation and destructive-action confirmation
+are unchanged.
+
+Jev receives each ordinary desktop command when configured, including familiar
+phrases. This adds an API round trip. Dictation controls, saved bookmarks and
+cancellation remain local. If the API fails, commands understood locally still work.
 
 ## Screenshots
 
@@ -171,8 +187,8 @@ Try these with the wake phrase or by holding F10:
 An app name and destination are enough: **“files workspace two”** opens Files
 there if closed, moves an existing window there if needed, or focuses it if already
 present. This applies to installed app names and aliases, without defining a custom
-phrase. Simple shorthand runs locally. Jev handles broader phrasing such as
-**“could I have files over on two”** when an API key is configured. Named-app
+phrase. Shorthand works locally without a key. With a key, Jev handles both shorthand
+and broader phrasing such as **“could I have files over on two”**. Named-app
 placement also opens a closed app when the request is interpreted as “move”.
 
 Within a chain, **it/that window** refers to the previous window operation.
@@ -230,8 +246,8 @@ outcomes and timings are stored locally in `~/.local/state/voicebind/sessions/`
 (or under `$XDG_STATE_HOME`).
 History displays the latest entries; session files are not automatically pruned.
 
-If you configure a Jev key, semantic fallback sends the command transcript and
-relevant command/app choices to Jev. Dictation bodies and saved bookmark window
+If you configure a Jev key, desktop-command interpretation sends each command
+transcript and relevant command/app choices to Jev. Dictation bodies and saved bookmark window
 titles are not sent to Jev. There is no analytics service in Voicebind.
 
 Configuration, keys, bookmarks and recovery drafts are private local files. A failed

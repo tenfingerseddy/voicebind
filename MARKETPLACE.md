@@ -15,6 +15,14 @@ interpretation, dictation, window/workspace bookmarks and a native Quickshell
 settings/history popup. Users can add their own Jev API key. Tested on Omarchy 4.0.3
 and Hyprland 0.56.2 with Lua bindings. English only in this public preview.
 
+Version 0.7.2 makes Jev the first desktop-command interpreter when a key is
+configured, with local fallback for API failures. Voice → Jev exposes confidence
+rejection (off by default) and its adjustable 0–100% threshold (initially 60).
+Low scores no longer prevent a supported action when rejection is off. Explicit
+cancellation, target validation and destructive-action confirmation are retained.
+Each ordinary desktop command now makes a Jev request when a key is configured;
+dictation controls and bookmarks stay local. No new dependency is introduced.
+
 Please list this as **Manual setup**: the root plugin installs through
 `omarchy plugin add`, but the speech backend needs the explicit setup steps in
 the README. The catalog supports an installation override with `mode: "manual"`.

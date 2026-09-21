@@ -1,10 +1,11 @@
-"""Fast local intents first; one Jev fan-out for natural-language requests."""
+"""Jev-first interpretation with optional confidence rejection and local fallback."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict, replace
 import math
 import re
 import shutil
+import time
 from pathlib import Path
 from personalization import SETTINGS_PHRASES
 
@@ -14,6 +15,7 @@ from settings import SETTINGS
 from language import clauses as split_clauses, canonical, add_role_aliases, app_name, undecorate_apps
 from panels import PANELS, parse_panel
 from vt import WAKE
+from configuration import DEFAULTS
 
 # Only fixed argv owned by the application may execute. No model-generated shell.
 EXTRAS = {
@@ -103,14 +105,18 @@ def normalize(text):
 
 
 def probability(answer, options):
-    choice = answer.get('choice')
     probs = answer.get('probabilities', {})
-    if choice not in options or choice not in probs:
+    if not isinstance(probs, dict):
         raise ValueError('Jev returned an invalid choice')
-    p = probs[choice]
-    if isinstance(p, bool) or not isinstance(p, (int, float)) or not math.isfinite(p) or not 0 <= p <= 1:
-        raise ValueError('Jev returned an invalid probability')
-    return choice, float(p)
+    valid = {key: float(value) for key, value in probs.items() if key in options
+             and not isinstance(value, bool) and isinstance(value, (int, float))
+             and math.isfinite(value) and 0 <= value <= 1}
+    if not valid:
+        raise ValueError('Jev returned no valid probabilities')
+    # The full distribution is authoritative; rounded choice/confidence fields
+    # can disagree with it. Prefer the provider's choice only in a tie.
+    selected = max(valid, key=lambda key: (valid[key], key == answer.get('choice')))
+    return selected, valid[selected]
 
 
 def noul(answer):
@@ -127,6 +133,7 @@ def choice(instructions, criteria):
 class Router:
     def __init__(self, catalog, config, jev=None):
         self.catalog, self.config, self.jev = catalog, config, jev
+        self.interpretation = {**DEFAULTS['interpretation'], **config.get('interpretation', {})}
         add_role_aliases(catalog)
         self.actions = {k:v for k,v in ACTIONS.items()
                         if k not in EXTRAS or shutil.which(EXTRAS[k][1][0])}
@@ -265,9 +272,14 @@ class Router:
 
     def questions(self, clauses):
         qs = {}
+        actions = {k: v for k, v in self.actions.items()
+                   if k != 'none' or self.interpretation['reject_low_confidence']}
+        selection = ('Choose none if no single supported operation covers this clause.'
+                     if self.interpretation['reject_low_confidence'] else
+                     'Always choose the closest supported operation, even when the wording is uncertain. Rank the likely intended actions; do not reject for low confidence.')
         for i, _ in enumerate(clauses):
             context = f"Read ONLY clause {i + 1} in 'clauses', a desktop request deliberately addressed by wake phrase or push-to-talk. "
-            qs[f'action{i}'] = choice(context + 'Which operation best achieves the intended result? Infer omitted verbs from app names, destinations and desired states; no command syntax is required. An app wanted on a workspace means open: the local planner launches if closed, or moves/focuses its existing window. Choose move for an explicit relocation request and switch only when no app is requested. Interpret plausible speech recognition slips. Choose none if no single supported operation covers this clause.', self.actions)
+            qs[f'action{i}'] = choice(context + 'Which operation best achieves the intended result? Infer omitted verbs from app names, destinations and desired states; no command syntax is required. An app wanted on a workspace means open: the local planner launches if closed, or moves/focuses its existing window. Choose move for an explicit relocation request and switch only when no app is requested. Interpret plausible speech recognition slips. ' + selection, actions)
             named = self.named_targets(clauses[i])
             qs[f'target{i}'] = choice(context + 'Which application is EXPLICITLY named? Use current for pronouns (this/it/that) or no named application. The planner binds it/that to the previous window in this chain, or the starting window if first. A folder such as Downloads is not an app.',
                 {'current':'A window pronoun or implicit target; no application is named',
@@ -295,7 +307,8 @@ class Router:
             return Proposal(verdict='drop', reason='Cancelled')
         if re.search(r'\b(?:if|unless|provided that|only when|as long as)\b', text):
             return Proposal(verdict='drop', reason='Conditional commands are not supported; say the result you want directly')
-        if not force_jev:
+        available = self.jev is not None and bool(getattr(self.jev, 'key', True))
+        if not available and not force_jev:
             try:
                 return self.local(text)
             except ValueError:
@@ -305,24 +318,61 @@ class Router:
                 return question
         if re.search(r'\b(?:close|shut|quit) (?:another|the other|some other) (?:app|application|window)\b', text):
             return Proposal(verdict='drop', reason='Say which other app to close; the whole request is waiting for a name')
-        if not self.jev:
+        if not available:
             return Proposal(verdict='drop', reason='Jev is unavailable; use a direct desktop command')
-        # Explicit clause boundaries only. Other conjunctions go to completeness
-        # judgement rather than executing a plausible fragment of a request.
-        clauses = split_clauses(text)
+        started = time.perf_counter()
+        try:
+            return self.semantic(text)
+        except (RuntimeError, OSError, ValueError, KeyError, TypeError):
+            # A network/provider problem must not disable commands understood
+            # locally. Never bypass a user's deliberate confidence rejection.
+            if not force_jev:
+                try:
+                    result = self.local(text)
+                    result.reason = 'Jev unavailable; used local interpretation'
+                    result.ms['jev'] = round((time.perf_counter() - started) * 1000, 1)
+                    return result
+                except ValueError:
+                    pass
+            raise
+
+    def semantic(self, text):
+        clauses = []
+        for clause in split_clauses(text):
+            # Preserve coordinated objects ("open files and teams on two").
+            # Expand only a fully parsed multi-app phrase into separate model
+            # questions. Jev still selects every action; nothing executes here.
+            shared = None
+            if ' and ' in clause:
+                try:
+                    shared = self.local(clause).commands
+                except ValueError:
+                    pass
+            if shared and len(shared) > 1 and all(c.action == 'open' for c in shared):
+                clauses.extend('open ' + ('new ' if c.new else '') + c.app
+                               + (f' on workspace {c.workspace}' if c.workspace is not None else '')
+                               + (' in the background' if not c.focus else '') for c in shared)
+            else:
+                clauses.append(clause)
         if len(clauses) > 4 or len(text) > 800:
             return Proposal(verdict='drop', reason='Use at most four short actions per request')
         qs = self.questions(clauses)
         ms, payload = self.jev.ask(text, {'clauses':clauses,
-            'supported_actions': self.actions,
+            'supported_actions': qs['action0']['criteria'],
             'named_apps':[list(self.named_targets(clause)) for clause in clauses]}, questions=qs)
         answers = payload['answers']
         p = Proposal(route='jev', ms={'jev':round(ms,1)}, usage=payload.get('usage',{}), answers=answers)
         p.command_like = noul(answers['addressed'])
-        if p.command_like < .60:
-            p.verdict, p.reason = 'drop', 'I did not hear a clear desktop request'
+        reject = self.interpretation['reject_low_confidence']
+        threshold = self.interpretation['minimum_confidence'] / 100
+        def below_threshold(score):
+            p.confidence = score
+            p.verdict = 'drop'
+            p.reason = f'Jev confidence {score:.0%} is below your {threshold:.0%} threshold. Adjust this in Voice → Jev.'
+        if reject and p.command_like < threshold:
+            below_threshold(p.command_like)
             return p
-        scores = []
+        scores = [p.command_like]
         for i in range(len(clauses)):
             def pick(name):
                 key = name + str(i)
@@ -331,8 +381,12 @@ class Router:
                 return value, score
             action, confidence = pick('action')
             complete = noul(answers[f'complete{i}'])
-            if action == 'none' or complete < .60:
-                p.verdict, p.reason = 'drop', 'Please give a complete supported desktop command'
+            if action == 'none':
+                p.confidence = min(scores + [confidence, complete])
+                p.verdict, p.reason = 'drop', 'Jev did not select a supported action. Turn off confidence rejection in Voice → Jev to use its closest match.'
+                return p
+            if reject and complete < threshold:
+                below_threshold(min(scores + [confidence, complete]))
                 return p
             scores.extend([confidence, complete])
             kw = {}
@@ -370,6 +424,9 @@ class Router:
             p.commands.append(self.command(action, **kw))
         self.validate(p.commands)
         p.confidence = min(scores)
+        if reject and p.confidence < threshold:
+            below_threshold(p.confidence)
+            return p
         destructive = any(c.action in ALWAYS_CONFIRM for c in p.commands)
         # Scores remain diagnostic. An addressed, supported and validated
         # command uses the best interpretation without a second voice roundtrip.

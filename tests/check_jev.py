@@ -27,6 +27,7 @@ CASES = [
     ('too loud', 'volume', None, None),
     ('screen is a bit dim', 'brightness.up', None, None),
     ('files workspace two then make it full screen', 'open', 'files.desktop', 2),
+    ('open files and teams on workspace two', 'open', 'files.desktop', 2),
     ('do not put files on workspace two', None, None, None),
     ('files workspace two if it is open', None, None, None),
     ('files workspace 200', None, None, None),
@@ -53,6 +54,7 @@ def main():
         try:
             for phrase, action, app, workspace in CASES:
                 try:
+                    router.interpretation['reject_low_confidence'] = action is None
                     proposal = router.decide(phrase, force_jev=True)
                     got = None
                     if action is None:
@@ -66,6 +68,8 @@ def main():
                             ok = ok and command.value < 0 and command.relative
                         if 'then' in phrase:
                             ok = ok and plan.steps[-1].command.action == 'fullscreen'
+                        if 'files and teams' in phrase:
+                            ok = ok and len(plan.steps) == 2 and plan.steps[1].command.app == 'teams.desktop'
                     failed += not ok
                     print(json.dumps({'phrase': phrase, 'ok': bool(ok), 'planned': got,
                                       'verdict': proposal.verdict, 'ms': proposal.ms}), flush=True)

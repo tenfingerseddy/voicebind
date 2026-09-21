@@ -12,6 +12,12 @@ source = "" # follow the system microphone; or choose a source in Settings
 end_silence_ms = 360 # silence wait for wake commands; 200–1500 ms; F10 release skips it
 wake_preview_ms = 800
 
+[interpretation]
+# With an API key, Jev interprets desktop commands first. Local commands still
+# work without a key or if the API is unavailable.
+reject_low_confidence = false # off: use Jev's best supported interpretation
+minimum_confidence = 60 # 0–100%; only applies when rejection is enabled
+
 [indicator]
 enabled = true
 size = 48

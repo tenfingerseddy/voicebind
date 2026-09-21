@@ -42,8 +42,10 @@ class Routing(Fixture):
   self.assertEqual([c.workspace for c in self.router.decide('open teams and outlook on workspace five').commands],[5,5])
   for text in ('open teams then delete documents','do not close teams','open teams but not now','open teams on workspace 100','open unknownapp'):
    with self.subTest(text=text): self.assertEqual(self.router.decide(text).verdict,'drop')
- def test_no_model_for_known_command(self):
-  self.router.jev=Mock(); self.router.decide('open teams on workspace 5'); self.router.jev.ask.assert_not_called()
+ def test_local_command_remains_available_without_an_api_key(self):
+  self.router.jev=Mock(key=None)
+  self.assertEqual(self.router.decide('open teams on workspace 5').route,'local')
+  self.router.jev.ask.assert_not_called()
  def test_semantic_request_skips_irrelevant_volume_work(self):
   self.assertNotIn('volume0',self.router.questions(['bring me teams']))
   options=self.router.questions(['set sound to seventy five percent'])['volume0']['criteria']
@@ -60,7 +62,7 @@ class Routing(Fixture):
   answers['target0']['probabilities']['teams']=.25
   p=self.router.decide('I need teams'); self.assertEqual(p.verdict,'act')
  def test_recent_spoken_variations_are_local_and_immediate(self):
-  self.router.jev=Mock()
+  self.router.jev=Mock(key=None)
   for text,action in [('and make teams fullscreen','fullscreen'),('make teams not full screen','restore'),
                       ('clothes files','close'),('course files','close'),('get teams out of fullscreen','restore')]:
    with self.subTest(text=text):
@@ -68,9 +70,11 @@ class Routing(Fixture):
     self.assertEqual(p.commands[0].action,action)
   self.router.jev.ask.assert_not_called()
  def test_no_partial_execution_for_incomplete_request(self):
+  self.router.interpretation['reject_low_confidence']=True
   self.router.jev=Mock(); self.router.jev.ask.return_value=(1,{'answers':{'addressed':{'noul':.99},'action0':{'choice':'open','probabilities':{'open':.99}},'complete0':{'noul':.1}}})
   p=self.router.decide('open teams and do something impossible'); self.assertEqual(p.verdict,'drop')
  def test_one_request_for_multiple_semantic_clauses(self):
+  self.router.interpretation['reject_low_confidence']=True
   self.router.jev=Mock()
   self.router.jev.ask.return_value=(1,{'answers':{'addressed':{'noul':.1}}})
   self.router.decide('give me teams then bring me outlook')
@@ -231,6 +235,7 @@ class PlacementTests(Fixture):
   for phrase in ['put teams on workspace one if it is open','could you put teams on desktop four later']:
    with self.assertRaises(ValueError): self.router.local(phrase)
  def test_only_mentioned_names_leave_machine(self):
+  self.router.interpretation['reject_low_confidence']=True
   self.router.jev=Mock(); self.router.jev.ask.return_value=(1,{'answers':{'addressed':{'noul':.1}}})
   self.router.decide('I need teams')
   call=self.router.jev.ask.call_args

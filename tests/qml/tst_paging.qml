@@ -87,6 +87,26 @@ TestCase {
         compare(mockBackend.requestValue.config.apps["my browser"], "app" + index)
         compare(mockBackend.requestValue.api_key, "test-only-key")
     }
+    function test_confidence_setting_survives_navigation_and_saves() {
+        panel.page = "Voice"; panel.voicePage = "Jev"
+        var toggle = findChild(panel, "rejectLowConfidence")
+        var threshold = findChild(panel, "minimumConfidence")
+        compare(toggle.text, "Reject low confidence: off")
+        verify(!threshold.enabled)
+        toggle.clicked()
+        verify(threshold.enabled)
+        edit(threshold, "35")
+        panel.page = "Apps"; panel.page = "Voice"; panel.voicePage = "Jev"
+        compare(threshold.text, "35")
+        panel.save()
+        compare(mockBackend.requestValue.config.interpretation.reject_low_confidence, true)
+        compare(mockBackend.requestValue.config.interpretation.minimum_confidence, 35)
+        toggle.clicked()
+        verify(!threshold.enabled)
+        panel.save()
+        compare(mockBackend.requestValue.config.interpretation.reject_low_confidence, false)
+        compare(mockBackend.requestValue.config.interpretation.minimum_confidence, 35)
+    }
     function test_long_diagnostic_has_all_text_without_overflow() {
         var view = createTemporaryObject(textFactory, test)
         var source = "Heard:\n" + "a very long chained voice command ".repeat(100) + "\nResult:\n" + "x".repeat(600)

@@ -12,6 +12,7 @@ import tomllib
 DEFAULTS = {
     'voice': {'wake_phrase': 'computer', 'wake_enabled': True},
     'recognition': {'end_silence_ms': 360, 'wake_preview_ms': 800},
+    'interpretation': {'reject_low_confidence': False, 'minimum_confidence': 60},
     'phrases': {},
     'indicator': {'enabled': True, 'size': 48, 'top': 54, 'dictation_width': 216},
     'desktop': {'focus_by_default': True, 'launch_timeout_seconds': 8, 'close_timeout_seconds': 1.5},
@@ -57,6 +58,14 @@ def validate_config(cfg):
         v = cfg[section][key]
         if isinstance(v, bool) or not isinstance(v, int) or not low <= v <= high:
             raise ValueError(f'{section}.{key} must be an integer from {low} to {high}')
+    interpretation = cfg.get('interpretation', DEFAULTS['interpretation'])
+    if not isinstance(interpretation, dict):
+        raise ValueError('interpretation must be a settings table')
+    if not isinstance(interpretation.get('reject_low_confidence', False), bool):
+        raise ValueError('interpretation.reject_low_confidence must be true or false')
+    threshold = interpretation.get('minimum_confidence', 60)
+    if isinstance(threshold, bool) or not isinstance(threshold, int) or not 0 <= threshold <= 100:
+        raise ValueError('interpretation.minimum_confidence must be an integer from 0 to 100')
     source = cfg['recognition'].get('source', '')
     if not isinstance(source, str) or len(source) > 256 or any(ord(c) < 32 for c in source):
         raise ValueError('Choose a valid microphone source')

@@ -23,13 +23,16 @@ FocusScope {
     ListModel { id: aliases }
     function load() {
         if (!backend.document) return
-        draft = JSON.parse(JSON.stringify(backend.document.config))
+        var next = JSON.parse(JSON.stringify(backend.document.config))
+        next.interpretation = Object.assign({reject_low_confidence: false, minimum_confidence: 60}, next.interpretation || {})
+        draft = next
         phrases.clear(); aliases.clear()
         Object.keys(draft.phrases || {}).forEach(function(k) { phrases.append({spoken: k, command: draft.phrases[k]}) })
         var apps = Object.assign({}, backend.document.roles, draft.apps || {})
         Object.keys(apps).forEach(function(k) { aliases.append({spoken: k, app: apps[k]}) })
         wake.text = draft.voice.wake_phrase
         silence.text = String(draft.recognition.end_silence_ms)
+        confidence.text = String(draft.interpretation.minimum_confidence)
         size.text = String(draft.indicator.size); top.text = String(draft.indicator.top)
         pill.text = String(draft.indicator.dictation_width)
         var sources = backend.document.microphones || []
@@ -41,6 +44,7 @@ FocusScope {
         var cfg = JSON.parse(JSON.stringify(draft)), seen = {}
         cfg.voice.wake_phrase = wake.text.trim().toLowerCase()
         cfg.recognition.end_silence_ms = Number(silence.text)
+        cfg.interpretation.minimum_confidence = Number(confidence.text)
         var source = (backend.document.microphones || [])[microphone.currentIndex]
         cfg.recognition.source = source ? source.name : ""
         cfg.indicator.size = Number(size.text); cfg.indicator.top = Number(top.text)
@@ -158,11 +162,32 @@ FocusScope {
                 }
                 ColumnLayout {
                     visible: root.voicePage === "Jev"
-                    Layout.fillWidth: true; spacing: Style.space(12)
+                    Layout.fillWidth: true; spacing: Style.space(10)
                     Label { text: "Jev API key · " + (backend.document && backend.document.key_configured ? "configured" : "not configured"); font.bold: true }
-                    Label { Layout.fillWidth: true; text: "Jev interprets commands that need more flexible wording. Speech recognition runs locally."; color: Color.muted }
+                    Label { Layout.fillWidth: true; text: "Jev interprets desktop commands first when a key is configured. Whisper speech recognition stays local."; color: Color.muted }
                     Field { id: apiKey; objectName: "apiKey"; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: "Paste a key to replace it"; onTextEdited: root.dirty = true }
-                    Label { Layout.fillWidth: true; text: "Stored privately on this computer. Leave blank to keep your current key, then use Save and apply."; color: Color.muted }
+                    Label { Layout.fillWidth: true; text: "Stored privately. Leave blank to keep your current key."; color: Color.muted }
+                    Button {
+                        objectName: "rejectLowConfidence"
+                        text: "Reject low confidence: " + (root.draft && root.draft.interpretation.reject_low_confidence ? "on" : "off")
+                        onClicked: {
+                            root.draft.interpretation.reject_low_confidence = !root.draft.interpretation.reject_low_confidence
+                            root.draft = Object.assign({}, root.draft)
+                            root.dirty = true
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label { text: "Minimum confidence (%)" }
+                        Field {
+                            id: confidence; objectName: "minimumConfidence"
+                            Layout.fillWidth: true
+                            enabled: root.draft && root.draft.interpretation.reject_low_confidence
+                            validator: IntValidator { bottom: 0; top: 100 }
+                            onTextEdited: root.dirty = true
+                        }
+                    }
+                    Label { Layout.fillWidth: true; text: "Off: use the best supported interpretation. On: skip results below the threshold. This is Jev confidence, not Whisper accuracy."; color: Color.muted }
                 }
                 Item { Layout.fillHeight: true }
             }

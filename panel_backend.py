@@ -77,7 +77,7 @@ def save(data):
     cfg = deepcopy(current)
     values = data['config']
     # Preserve advanced per-machine mappings that the panel does not edit.
-    for section in ('voice', 'recognition', 'indicator', 'desktop'):
+    for section in ('voice', 'recognition', 'interpretation', 'indicator', 'desktop'):
         if section in values:
             if not isinstance(values[section], dict): raise ValueError('Invalid settings section')
             for key in current[section]:

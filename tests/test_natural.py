@@ -39,7 +39,7 @@ class Natural(Fixture):
   self.assertEqual(p.commands[1].reference,'previous')
 
  def test_app_and_destination_imply_open_without_an_api_request(self):
-  self.router.jev=Mock()
+  self.router.jev=Mock(key=None)
   for phrase,app,workspace in [('files workspace 2','files',2),
                               ('browser on three','browser',3),
                               ('Teams desktop five','teams',5),
