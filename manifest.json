@@ -3,7 +3,7 @@
   "id": "io.github.tenfingerseddy.voicebind",
   "name": "Voicebind",
   "version": "0.7.1",
-  "description": "Voice control, dictation, bookmarks and personal settings.",
+  "description": "Natural voice control for Omarchy with Jev AI and local Whisper. Say ‘computer’ or hold F10 to open apps, move windows, chain commands, dictate text and recall saved workspace layouts. Personalise phrases and app aliases in bar settings, with a waveform that follows your theme. Jev interprets more flexible command phrasing; it is optional and uses your own API key.",
   "kinds": [
     "service",
     "bar-widget"

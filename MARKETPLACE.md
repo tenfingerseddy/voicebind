@@ -10,8 +10,9 @@ Plugin ID: `io.github.tenfingerseddy.voicebind`
 
 Maintainer notes for the [submission form](https://plugins.omarchy.org/publish.html):
 
-Voicebind provides local Whisper voice control, dictation, window/workspace
-bookmarks and a native Quickshell settings/history popup. Tested on Omarchy 4.0.3
+Voicebind combines local Whisper speech recognition with optional Jev AI command
+interpretation, dictation, window/workspace bookmarks and a native Quickshell
+settings/history popup. Users can add their own Jev API key. Tested on Omarchy 4.0.3
 and Hyprland 0.56.2 with Lua bindings. English only in this public preview.
 
 Please list this as **Manual setup**: the root plugin installs through
@@ -37,5 +38,8 @@ Omarchy has no backend uninstallation hook. User settings, keys and history are
 retained. Optional Jev requests send command transcripts and app/action choices;
 speech recognition and dictation stay local. There is no analytics service.
 
-MIT license, including the retained desktop component notice. No preview assets
-are included; the marketplace can use its fallback preview.
+MIT license, including the retained desktop component notice. The root `preview.png`
+provides the marketplace image. The README includes listening, Jev and personal
+phrase screenshots. These render the real UI components with example configuration;
+the waveform is illustrated with sample data. No personal history or credentials
+are included.

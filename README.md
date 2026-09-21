@@ -1,10 +1,13 @@
 # Voicebind
 
-Natural voice control for your Omarchy desktop. Say **“computer”** or hold **F10**, then speak.
+Natural voice control for Omarchy with **Jev AI** and **local Whisper**.
+Say **“computer”** or hold **F10**, then speak.
 
 Open apps, move windows, chain commands, dictate text and recall saved workspace
 arrangements. Local Whisper handles speech recognition. Common commands run locally;
 an optional Jev API key adds semantic interpretation for unfamiliar phrasing.
+
+![Voicebind: local Whisper speech recognition, optional Jev AI, themed settings and dictation waveform](preview.png)
 
 **Current public preview: 0.7.1.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
 Lua configuration and the Quickshell bar. Older Waybar/Hyprland configurations
@@ -122,6 +125,32 @@ supported; the legacy `~/.config/typesafe/env` file is read if no newer key exis
 The adapter currently uses `api.typesafe.ai/v1/systemone`, model `jev-1.13.0`;
 `VT_JEV_MODEL` overrides the model. It is not a generic OpenAI-compatible endpoint.
 Provider access and charges are separate from Voicebind.
+
+## Screenshots
+
+The screenshots show the real settings components with example configuration in a
+Tokyo Night palette. The preview waveform uses illustrative audio samples. Your
+settings panel and listening indicator follow your current Omarchy theme.
+
+<details>
+<summary>Listening settings, Jev API key and personal phrases</summary>
+
+### Listening settings
+
+![Voicebind listening settings: wake phrase, microphone and silence wait](docs/screenshots/listening.png)
+
+### Jev interpretation
+
+Add your own Jev API key for more flexible command phrasing. Whisper speech
+recognition stays local; Jev receives command text when semantic interpretation is needed.
+
+![Voicebind Jev settings with the optional API key field](docs/screenshots/jev.png)
+
+### Your phrases
+
+![Voicebind personal phrases mapping writing time to dictation and get to work to opening the browser](docs/screenshots/phrases.png)
+
+</details>
 
 ## Speaking to the desktop
 
