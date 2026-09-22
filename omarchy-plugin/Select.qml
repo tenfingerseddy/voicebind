@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import qs.Commons
 Controls.ComboBox {
     id: select
-    implicitHeight: Style.space(38)
+    implicitHeight: Style.space(34)
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     leftPadding: Style.space(10)
@@ -16,7 +16,7 @@ Controls.ComboBox {
     palette.highlight: Color.accent
     palette.highlightedText: Color.background
     contentItem: Label { text: select.displayText; verticalAlignment: Text.AlignVCenter; wrapMode: Text.NoWrap; elide: Text.ElideRight }
-    background: Rectangle { color: "transparent"; border.color: select.activeFocus ? Color.accent : Color.popups.border; radius: Style.space(4) }
+    background: Rectangle { color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.025); border.color: select.activeFocus ? Color.accent : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, select.hovered ? 0.4 : 0.22); radius: Math.min(Style.space(4), Style.cornerRadius || 0) }
     indicator: Label { text: "⌄"; x: select.width - width - Style.space(10); anchors.verticalCenter: parent.verticalCenter }
     // Long app/microphone menus use search and pages rather than a scroll list.
     popup: Controls.Popup {
@@ -41,7 +41,7 @@ Controls.ComboBox {
             select.forceActiveFocus()
         }
         onOpened: { search.text = ""; choicePager.page = 0; search.forceActiveFocus() }
-        background: Rectangle { color: Color.popups.background; border.color: Color.popups.border; radius: Style.space(4) }
+        background: Rectangle { color: Color.popups.background; border.color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.3); radius: Math.min(Style.space(4), Style.cornerRadius || 0) }
         contentItem: ColumnLayout {
             id: choiceColumn
             spacing: Style.space(6)
@@ -56,7 +56,7 @@ Controls.ComboBox {
                 model: choices.matches.slice(choicePager.first, choicePager.end)
                 Button { required property var modelData; Layout.fillWidth: true; primary: select.currentIndex === modelData.sourceIndex; text: modelData.name; onClicked: choices.choose(modelData.sourceIndex) }
             }
-            Label { visible: choices.matches.length === 0; text: "No matches"; color: Color.muted }
+            Label { visible: choices.matches.length === 0; text: "No matches"; color: secondaryColor }
             Pager { id: choicePager; Layout.fillWidth: true; count: choices.matches.length; pageSize: 4 }
         }
     }

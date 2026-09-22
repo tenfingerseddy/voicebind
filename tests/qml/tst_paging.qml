@@ -91,9 +91,10 @@ TestCase {
         panel.page = "Voice"; panel.voicePage = "Jev"
         var toggle = findChild(panel, "rejectLowConfidence")
         var threshold = findChild(panel, "minimumConfidence")
-        compare(toggle.text, "Reject low confidence: off")
+        compare(toggle.checkedValue, false)
         verify(!threshold.enabled)
         toggle.clicked()
+        compare(toggle.checkedValue, true)
         verify(threshold.enabled)
         edit(threshold, "35")
         panel.page = "Apps"; panel.page = "Voice"; panel.voicePage = "Jev"
@@ -142,7 +143,9 @@ TestCase {
         for (var i = 0; i < children.length; i++) checkBounds(children[i])
     }
     function test_visible_controls_fit_without_scroll() {
-        for (var h of [600, 520]) {
+        for (var dimensions of [[548, 600], [500, 600], [468, 520]]) {
+            var h = dimensions[1]
+            panel.width = dimensions[0]
             panel.height = h
             for (var sub of ["Listening", "Appearance", "Jev"]) {
                 panel.page = "Voice"; panel.voicePage = sub; wait(20); checkBounds(panel)

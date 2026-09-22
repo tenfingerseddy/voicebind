@@ -14,12 +14,13 @@ RowLayout {
     onPageCountChanged: page = Math.min(page, pageCount - 1)
     function showLast() { page = pageCount - 1 }
     spacing: Style.space(8)
-    Button { text: "‹"; Accessible.name: "Previous page"; enabled: root.page > 0; onClicked: root.page-- }
+    Button { text: "‹"; quiet: true; visible: root.pageCount > 1; Accessible.name: "Previous page"; enabled: root.page > 0; onClicked: root.page-- }
     Label {
         Layout.fillWidth: true
-        horizontalAlignment: Text.AlignHCenter
+        horizontalAlignment: root.pageCount > 1 ? Text.AlignHCenter : Text.AlignLeft
         text: root.count ? (root.first + 1) + (root.end > root.first + 1 ? "–" + root.end : "") + " of " + root.count + (root.unit ? " " + root.unit : "") : "No entries"
-        color: Color.muted
+        color: secondaryColor
+        font.pixelSize: Style.font.caption || Style.font.body
     }
-    Button { text: "›"; Accessible.name: "Next page"; enabled: root.page + 1 < root.pageCount; onClicked: root.page++ }
+    Button { text: "›"; quiet: true; visible: root.pageCount > 1; Accessible.name: "Next page"; enabled: root.page + 1 < root.pageCount; onClicked: root.page++ }
 }

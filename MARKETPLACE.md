@@ -15,7 +15,13 @@ interpretation, dictation, window/workspace bookmarks and a native Quickshell
 settings/history popup. Users can add their own Jev API key. Tested on Omarchy 4.0.3
 and Hyprland 0.56.2 with Lua bindings. English only in this public preview.
 
-Version 0.7.2 makes Jev the first desktop-command interpreter when a key is
+Version 0.7.3 refines the settings panel with lighter tabs, proper switches,
+theme-matched secondary text and corners, clearer phrase/app/bookmark editors,
+and command-first history rows with All/Issues filters. The panel is narrower
+and keeps pagination instead of scrolling. The marketplace preview and README
+screenshots show the updated interface.
+
+The Jev changes introduced in 0.7.2 remain: Jev is the first desktop-command interpreter when a key is
 configured, with local fallback for API failures. Voice → Jev exposes confidence
 rejection (off by default) and its adjustable 0–100% threshold (initially 60).
 Low scores no longer prevent a supported action when rejection is off. Explicit

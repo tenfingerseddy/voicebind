@@ -4,14 +4,15 @@ import qs.Commons
 Controls.Button {
     id: button
     property bool primary: false
-    implicitHeight: Style.space(36)
+    property bool quiet: false
+    implicitHeight: Style.space(32)
     implicitWidth: caption.implicitWidth + Style.space(24)
     padding: Style.space(8)
     Accessible.name: text
     contentItem: Label {
         id: caption
         text: button.text
-        color: button.primary ? Color.background : Color.popups.text
+        color: button.primary && button.enabled ? Color.background : Color.popups.text
         opacity: button.enabled ? 1 : 0.4
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
@@ -19,9 +20,11 @@ Controls.Button {
         elide: Text.ElideRight
     }
     background: Rectangle {
-        color: button.primary ? Color.accent : button.hovered ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.15) : "transparent"
-        border.color: button.activeFocus ? Color.accent : Color.popups.border
-        radius: Style.space(4)
+        color: button.primary && button.enabled ? Color.accent : button.down ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.18) : button.hovered ? Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.08) : "transparent"
+        border.color: button.activeFocus ? Color.accent : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.25)
+        border.width: button.quiet && !button.activeFocus ? 0 : 1
+        radius: Math.min(Style.space(4), Style.cornerRadius || 0)
         opacity: button.enabled ? 1 : 0.4
+        Behavior on color { ColorAnimation { duration: 100 } }
     }
 }

@@ -10,7 +10,7 @@ a key or when the API is unavailable.
 
 ![Voicebind: local Whisper speech recognition, optional Jev AI, themed settings and dictation waveform](preview.png)
 
-**Current public preview: 0.7.2.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
+**Current public preview: 0.7.3.** Tested on Omarchy 4.0.3 with Hyprland 0.56.2,
 Lua configuration and the Quickshell bar. Older Waybar/Hyprland configurations
 are not supported. English speech and commands only at present.
 
@@ -147,6 +147,7 @@ cancellation remain local. If the API fails, commands understood locally still w
 The screenshots show the real settings components with example configuration in a
 Tokyo Night palette. The preview waveform uses illustrative audio samples. Your
 settings panel and listening indicator follow your current Omarchy theme.
+The compact panel uses tabs, switches and paged lists, with no scrolling.
 
 <details>
 <summary>Listening settings, Jev API key and personal phrases</summary>
@@ -158,7 +159,7 @@ settings panel and listening indicator follow your current Omarchy theme.
 ### Jev interpretation
 
 Add your own Jev API key for more flexible command phrasing. Whisper speech
-recognition stays local; Jev receives command text when semantic interpretation is needed.
+recognition stays local; Jev receives ordinary desktop-command text when a key is configured.
 
 ![Voicebind Jev settings with the optional API key field](docs/screenshots/jev.png)
 

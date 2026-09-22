@@ -64,8 +64,8 @@ Ui.BarWidget {
             popoutSwitching: panel.popoutSwitching
             popoutSwitchClosing: panel.popoutSwitchClosing
             focusTarget: contents.item
-            contentWidth: fittedContentWidth(Style.space(580))
-            contentHeight: fittedContentHeight(Style.space(600))
+            contentWidth: fittedContentWidth(Style.space(500))
+            contentHeight: fittedContentHeight(Style.space(560))
             Loader {
                 id: contents
                 anchors.fill: parent

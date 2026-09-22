@@ -26,11 +26,12 @@ Item {
         visible: root.selected === null
         spacing: Style.space(10)
         RowLayout {
-            Label { Layout.fillWidth: true; text: "Recent activity"; font.bold: true }
-            Button { text: root.issuesOnly ? "Show all" : "Issues only"; primary: root.issuesOnly; onClicked: root.issuesOnly = !root.issuesOnly }
-            Button { text: "Refresh"; enabled: !backend.busy; onClicked: backend.refreshHistory() }
+            Label { Layout.fillWidth: true; text: "RECENT ACTIVITY"; font.bold: true; font.pixelSize: Style.font.caption || Style.font.body; color: secondaryColor }
+            Tab { text: "All"; secondary: true; selected: !root.issuesOnly; onClicked: root.issuesOnly = false }
+            Tab { text: "Issues"; secondary: true; selected: root.issuesOnly; onClicked: root.issuesOnly = true }
+            Button { text: "Refresh"; quiet: true; enabled: !backend.busy; onClicked: backend.refreshHistory() }
         }
-        Label { Layout.fillWidth: true; text: "Select an entry for its result and timing. Dictation text is not stored here."; color: Color.muted }
+        Label { Layout.fillWidth: true; text: "Select a command for its result and timing. Dictation text stays out of history."; color: secondaryColor; font.pixelSize: Style.font.caption || Style.font.body }
         Item {
             id: entries
             Layout.fillWidth: true; Layout.fillHeight: true
@@ -49,16 +50,22 @@ Item {
                         Layout.fillWidth: true
                         implicitWidth: 0
                         implicitHeight: Style.space(74)
+                        quiet: true
                         text: modelData.heard || modelData.title
                         onClicked: root.selected = modelData
                         contentItem: ColumnLayout {
                             spacing: Style.space(4)
                             RowLayout {
-                                Label { Layout.fillWidth: true; text: Qt.formatDateTime(new Date(modelData.t * 1000), "ddd d MMM · HH:mm:ss"); color: Color.muted }
-                                Label { text: modelData.outcome; color: modelData.issue ? Color.urgent : Color.popups.text }
+                                Label { Layout.fillWidth: true; text: modelData.heard || modelData.title; font.bold: true; maximumLineCount: 1; elide: Text.ElideRight }
+                                Label { text: "›"; color: secondaryColor }
                             }
-                            Label { Layout.fillWidth: true; text: modelData.heard || modelData.title; font.bold: true; maximumLineCount: 2; elide: Text.ElideRight }
+                            RowLayout {
+                                Label { text: modelData.outcome; color: modelData.issue ? Color.urgent : Color.accent; font.pixelSize: Style.font.caption || Style.font.body }
+                                Label { Layout.fillWidth: true; text: modelData.route === "jev" ? "· Jev" : modelData.route === "local" ? "· Local" : ""; color: secondaryColor; font.pixelSize: Style.font.caption || Style.font.body }
+                                Label { text: Qt.formatDateTime(new Date(modelData.t * 1000), "ddd · HH:mm"); color: secondaryColor; font.pixelSize: Style.font.caption || Style.font.body }
+                            }
                         }
+                        Divider { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } }
                     }
                 }
             }
@@ -71,7 +78,7 @@ Item {
         spacing: Style.space(10)
         RowLayout {
             Button { text: "‹ History"; onClicked: root.selected = null }
-            Label { Layout.fillWidth: true; text: root.selected ? Qt.formatDateTime(new Date(root.selected.t * 1000), "ddd d MMM · HH:mm:ss") : ""; color: Color.muted; horizontalAlignment: Text.AlignRight }
+            Label { Layout.fillWidth: true; text: root.selected ? Qt.formatDateTime(new Date(root.selected.t * 1000), "ddd d MMM · HH:mm:ss") : ""; color: secondaryColor; horizontalAlignment: Text.AlignRight }
         }
         TextPages {
             Layout.fillWidth: true; Layout.fillHeight: true
